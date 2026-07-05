@@ -1,0 +1,34 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # Pfade innerhalb des Containers
+      LUKA_DATA_DIR: /data
+      LUKA_CONTENT_DIR: /content/aufgaben
+      # In Produktion (Domain + HTTPS) auf true setzen, z.B. in deploy/.env
+      LUKA_SECURE_COOKIES: "${LUKA_SECURE_COOKIES:-false}"
+    volumes:
+      - ../data:/data
+      - ../content:/content
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

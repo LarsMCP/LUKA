@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar">
+  <strong>LUKA Admin</strong>
+  <nav class="subject">
+    <a href="/admin">Start</a> &middot;
+    <a href="/admin/classes">Klassen</a> &middot;
+    <a href="/admin/students">Schüler</a> &middot;
+    <a href="/admin/tasks">Aufgaben</a> &middot;
+    <a href="/admin/submissions">Ergebnisse</a> &middot;
+    <form action="/admin/logout" method="post" style="display:inline">
+      <button type="submit" style="background:none;border:0;color:var(--blue);padding:0;margin:0;cursor:pointer;font-size:0.9rem">abmelden</button>
+    </form>
+  </nav>
+</div>
+<hr>
+{% block admin %}{% endblock %}
+{% endblock %}

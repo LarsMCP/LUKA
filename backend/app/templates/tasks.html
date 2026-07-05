@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Aufgaben – LUKA{% endblock %}
+{% block content %}
+<div class="topbar">
+  <h1>Aufgaben</h1>
+  <span class="subject">
+    {{ student.display_name }} &middot;
+    <a href="/passwort">Passwort ändern</a> &middot;
+    <a href="#" id="logout">abmelden</a>
+  </span>
+</div>
+
+{% if tasks %}
+<ul class="tasks">
+  {% for task in tasks %}
+  <li class="topbar">
+    <div>
+      <a href="/task/{{ task.slug }}">{{ task.title }}</a>
+      {% if task.subject %}<div class="subject">{{ task.subject }}</div>{% endif %}
+    </div>
+    {% if task.submitted %}
+    <span class="badge badge-done">abgegeben</span>
+    {% else %}
+    <span class="badge badge-open">offen</span>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="subject">Aktuell sind keine Aufgaben freigeschaltet.</p>
+{% endif %}
+
+<script>
+  document.getElementById("logout").addEventListener("click", async (e) => {
+    e.preventDefault();
+    await fetch("/api/logout", { method: "POST", credentials: "same-origin" });
+    window.location.href = "/";
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+# Caddyfile für LUKA
+#
+# Lokaler Test: unter http://localhost erreichbar (automatisches HTTP).
+# Produktion: ersetze ":80" durch deine Domain (z.B. luka.example.de),
+# dann kümmert sich Caddy automatisch um HTTPS/Let's Encrypt.
+
+:80 {
+	reverse_proxy app:8000
+}
+
+# Produktionsbeispiel (auskommentiert):
+# luka.example.de {
+# 	reverse_proxy app:8000
+# }

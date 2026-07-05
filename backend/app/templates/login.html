@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Anmelden – LUKA{% endblock %}
+{% block content %}
+<h1>LUKA – Anmelden</h1>
+<div class="card">
+  <form id="login-form">
+    <label for="join_code">Klassen-Code</label>
+    <input type="text" id="join_code" name="join_code" autocomplete="off" required
+           value="{{ prefill_code }}">
+
+    <label for="display_name">Dein Kürzel (Pseudonym)</label>
+    <input type="text" id="display_name" name="display_name" autocomplete="off" required>
+
+    <!-- Schritt 2: erscheint nach "Weiter" -->
+    <div id="pw-section" hidden>
+      <p class="subject" id="pw-hint"></p>
+      <label for="password" id="password-label">Passwort</label>
+      <input type="password" id="password" autocomplete="off"
+             style="width:100%;box-sizing:border-box;font-size:1rem;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px">
+
+      <div id="confirm-wrap" hidden>
+        <label for="password_confirm">Passwort wiederholen</label>
+        <input type="password" id="password_confirm" autocomplete="off"
+               style="width:100%;box-sizing:border-box;font-size:1rem;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px">
+      </div>
+    </div>
+
+    <button type="submit" id="submit-btn">Weiter</button>
+    <div class="error" id="error" hidden></div>
+  </form>
+  <p class="subject" style="margin-top:1rem">
+    Bitte keinen echten Namen verwenden, wenn deine Lehrkraft ein Pseudonym vorgibt.
+    Merke dir dein Passwort – bei Verlust setzt es deine Lehrkraft zurück.
+  </p>
+</div>
+<p class="subject" style="margin-top:1rem"><a href="/datenschutz">Datenschutzhinweise</a></p>
+
+<script>
+  const form = document.getElementById("login-form");
+  const errorBox = document.getElementById("error");
+  const codeEl = document.getElementById("join_code");
+  const nameEl = document.getElementById("display_name");
+  const pwSection = document.getElementById("pw-section");
+  const pwHint = document.getElementById("pw-hint");
+  const pwLabel = document.getElementById("password-label");
+  const pwEl = document.getElementById("password");
+  const confirmWrap = document.getElementById("confirm-wrap");
+  const confirmEl = document.getElementById("password_confirm");
+  const submitBtn = document.getElementById("submit-btn");
+
+  let mode = null; // null = Schritt 1, "new" | "existing" = Schritt 2
+
+  // Per QR vorbelegter Code → direkt zum Kürzel springen.
+  if (codeEl.value.trim()) nameEl.focus();
+
+  function showError(msg) { errorBox.textContent = msg; errorBox.hidden = false; }
+
+  // Änderungen an Code/Kürzel setzen den Passwort-Schritt zurück.
+  [codeEl, nameEl].forEach((el) => el.addEventListener("input", () => {
+    if (mode !== null) {
+      mode = null;
+      pwSection.hidden = true;
+      submitBtn.textContent = "Weiter";
+    }
+  }));
+
+  async function goToStep2() {
+    errorBox.hidden = true;
+    const res = await fetch("/api/join/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ join_code: codeEl.value, display_name: nameEl.value }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || "Prüfung fehlgeschlagen");
+    }
+    const data = await res.json();
+    mode = data.mode;
+    pwSection.hidden = false;
+    if (mode === "new") {
+      pwHint.textContent = "Lege ein Passwort für dein Kürzel fest.";
+      pwLabel.textContent = "Neues Passwort";
+      confirmWrap.hidden = false;
+    } else {
+      pwHint.textContent = "Bitte gib dein Passwort ein.";
+      pwLabel.textContent = "Passwort";
+      confirmWrap.hidden = true;
+    }
+    submitBtn.textContent = "Anmelden";
+    pwEl.value = "";
+    confirmEl.value = "";
+    pwEl.focus();
+  }
+
+  async function doLogin() {
+    errorBox.hidden = true;
+    if (mode === "new" && pwEl.value !== confirmEl.value) {
+      throw new Error("Die Passwörter stimmen nicht überein.");
+    }
+    const res = await fetch("/api/join", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        join_code: codeEl.value,
+        display_name: nameEl.value,
+        password: pwEl.value,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || "Anmeldung fehlgeschlagen");
+    }
+    window.location.href = "/aufgaben";
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      if (mode === null) {
+        await goToStep2();
+      } else {
+        await doLogin();
+      }
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+</script>
+{% endblock %}

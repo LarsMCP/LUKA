@@ -1,0 +1,12 @@
+{% extends "admin_base.html" %}
+{% block title %}Admin – LUKA{% endblock %}
+{% block admin %}
+<h1>Übersicht</h1>
+<p class="subject">Angemeldet als {{ teacher.username }} ({{ teacher.role }}).</p>
+<ul class="tasks">
+  <li><strong>{{ counts.classes }}</strong> Klassen &middot; <a href="/admin/classes">verwalten</a></li>
+  <li><strong>{{ counts.tasks }}</strong> Aufgaben &middot; <a href="/admin/tasks">verwalten</a></li>
+  <li><strong>{{ counts.students }}</strong> Schüler</li>
+  <li><strong>{{ counts.submissions }}</strong> Abgaben &middot; <a href="/admin/submissions">ansehen</a></li>
+</ul>
+{% endblock %}

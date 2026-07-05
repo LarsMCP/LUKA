@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Admin-Login – LUKA{% endblock %}
+{% block content %}
+<h1>LUKA – Admin-Login</h1>
+<div class="card">
+  <form action="/admin/login" method="post">
+    <label for="username">Benutzername</label>
+    <input type="text" id="username" name="username" autocomplete="username" required>
+
+    <label for="password">Passwort</label>
+    <input type="password" id="password" name="password" autocomplete="current-password" required
+           style="width:100%;box-sizing:border-box;font-size:1rem;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px">
+
+    <button type="submit">Anmelden</button>
+    {% if error %}<div class="error">Anmeldung fehlgeschlagen.</div>{% endif %}
+  </form>
+</div>
+{% endblock %}

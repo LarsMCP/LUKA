@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Datenschutz – LUKA{% endblock %}
+{% block content %}
+<h1>Datenschutzhinweise</h1>
+<p class="subject">
+  Hinweis: Dies ist eine Vorlage. Bitte vor dem produktiven Einsatz durch die
+  verantwortliche Lehrkraft/Schule prüfen und die Platzhalter ausfüllen.
+</p>
+
+<div class="card">
+  <h2>Verantwortlicher</h2>
+  <p>[Name der Lehrkraft/Schule], [Anschrift], [E-Mail-Kontakt]</p>
+
+  <h2>Welche Daten werden verarbeitet?</h2>
+  <ul>
+    <li><strong>Anzeigename (Pseudonym)</strong>, das du beim Login wählst.</li>
+    <li><strong>Klassenzugehörigkeit</strong> (über den Klassen-Code).</li>
+    <li><strong>Deine Antworten</strong> zu den Übungsaufgaben inkl. Zeitpunkt der Abgabe.</li>
+    <li>Ein selbst gewähltes <strong>Passwort</strong> – nur als nicht umkehrbarer
+        Hash gespeichert; niemand (auch nicht die Lehrkraft) kann es einsehen.</li>
+    <li>Ein technisches <strong>Sitzungs-Cookie</strong>, damit du eingeloggt bleibst.</li>
+  </ul>
+  <p class="subject">
+    Es werden bewusst keine Klarnamen oder E-Mail-Adressen von Schülerinnen und
+    Schülern verlangt (Datenminimierung, Art. 5 DSGVO).
+  </p>
+
+  <h2>Zweck</h2>
+  <p>Bereitstellung von Übungsaufgaben und Anzeige der Ergebnisse für die Lehrkraft
+     zu Unterrichtszwecken.</p>
+
+  <h2>Speicherdauer & Löschung</h2>
+  <p>Die Daten werden gelöscht, sobald sie für den Unterricht nicht mehr benötigt
+     werden, spätestens am Ende des Schuljahres. Die Lehrkraft kann Schüler und
+     ganze Klassen (inkl. aller Abgaben) jederzeit löschen.</p>
+
+  <h2>Deine Rechte</h2>
+  <p>Auskunft, Berichtigung, Löschung und Widerspruch. Wende dich dazu an die oben
+     genannte verantwortliche Stelle.</p>
+</div>
+
+<p style="margin-top:1.5rem"><a href="/">&larr; Zurück</a></p>
+{% endblock %}

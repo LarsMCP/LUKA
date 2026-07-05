@@ -1,0 +1,31 @@
+{% extends "admin_base.html" %}
+{% block title %}Aufgaben – LUKA{% endblock %}
+{% block admin %}
+<div class="topbar">
+  <h1>Aufgaben</h1>
+  <form action="/admin/tasks/rescan" method="post">
+    <button type="submit" style="margin:0">Neu einlesen</button>
+  </form>
+</div>
+
+{% if rescanned %}<p class="subject">Aufgabenverzeichnis wurde neu eingelesen.</p>{% endif %}
+
+<p class="subject">
+  Aufgaben werden als HTML unter <code>content/aufgaben/&lt;slug&gt;/index.html</code> abgelegt
+  und hier automatisch erkannt.
+</p>
+
+<ul class="tasks">
+  {% for task in tasks %}
+  <li>
+    <strong>{{ task.title }}</strong>
+    <div class="subject">
+      {{ task.slug }}{% if task.subject %} &middot; {{ task.subject }}{% endif %}
+      &middot; <a href="/task/{{ task.slug }}" target="_blank">Vorschau</a>
+    </div>
+  </li>
+  {% else %}
+  <li class="subject">Keine Aufgaben gefunden.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

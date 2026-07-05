@@ -1,0 +1,58 @@
+{% extends "admin_base.html" %}
+{% block title %}Ergebnisse – LUKA{% endblock %}
+{% block admin %}
+<h1>Ergebnisse</h1>
+
+<form method="get" action="/admin/submissions" class="card" style="margin-bottom:1.5rem">
+  <label for="class_id" style="margin-top:0">Klasse</label>
+  <select id="class_id" name="class_id" onchange="this.form.submit()">
+    <option value="">– wählen –</option>
+    {% for klass in classes %}
+    <option value="{{ klass.id }}" {{ 'selected' if sel_class == klass.id else '' }}>{{ klass.name }}</option>
+    {% endfor %}
+  </select>
+
+  {% if tasks %}
+  <label for="task_slug">Aufgabe</label>
+  <select id="task_slug" name="task_slug" onchange="this.form.submit()">
+    <option value="">– wählen –</option>
+    {% for task in tasks %}
+    <option value="{{ task.slug }}" {{ 'selected' if sel_task == task.slug else '' }}>{{ task.title }}</option>
+    {% endfor %}
+  </select>
+  {% elif sel_class %}
+  <p class="subject">Dieser Klasse sind keine Aufgaben freigeschaltet.</p>
+  {% endif %}
+</form>
+
+{% if sel_class and sel_task %}
+  <div class="topbar">
+    <p class="subject">Jeweils neueste Abgabe pro Schüler.</p>
+    <a href="/admin/submissions.csv?class_id={{ sel_class }}&task_slug={{ sel_task }}">CSV-Export</a>
+  </div>
+  <table border="0" cellpadding="6" style="border-collapse:collapse;width:100%">
+    <thead>
+      <tr style="text-align:left;border-bottom:2px solid #e5e7eb">
+        <th>Schüler</th>
+        <th>Abgabe (UTC)</th>
+        {% for key in keys %}<th>{{ key }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr style="border-bottom:1px solid #eee">
+        <td>{{ row.student }}</td>
+        <td class="subject">
+          {{ row.submitted_at.strftime('%Y-%m-%d %H:%M') if row.submitted_at else '–' }}
+        </td>
+        {% for key in keys %}
+        <td>{{ format_answer(row.answers.get(key)) if row.answers else '' }}</td>
+        {% endfor %}
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ keys|length + 2 }}" class="subject">Keine Schüler in dieser Klasse.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+{% endblock %}

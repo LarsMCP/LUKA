@@ -1,0 +1,70 @@
+{% extends "admin_base.html" %}
+{% block title %}Klassen – LUKA{% endblock %}
+{% block admin %}
+<h1>Klassen</h1>
+
+<div class="card" style="margin-bottom:1.5rem">
+  <form action="/admin/classes" method="post" style="display:flex;gap:0.5rem;align-items:flex-end">
+    <div style="flex:1">
+      <label for="name" style="margin-top:0">Neue Klasse</label>
+      <input type="text" id="name" name="name" placeholder="z.B. 9b Mathe" required>
+    </div>
+    <button type="submit" style="margin:0">Anlegen</button>
+  </form>
+</div>
+
+{% for klass in classes %}
+<div class="card" style="margin-bottom:1rem">
+  <div class="topbar">
+    <div style="display:flex;gap:0.75rem;align-items:center">
+      <img src="/admin/classes/{{ klass.id }}/qr.svg" alt="QR-Code" width="72" height="72"
+           style="border:1px solid #e5e7eb;border-radius:6px">
+      <div>
+        <strong>{{ klass.name }}</strong>
+        {% if not klass.active %}<span class="error">(inaktiv)</span>{% endif %}
+        <div class="subject">
+          Beitritts-Code: <code>{{ klass.join_code }}</code>
+          &middot; <a href="/admin/classes/{{ klass.id }}/qr" target="_blank">QR-Code drucken</a>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.5rem">
+      <form action="/admin/classes/{{ klass.id }}/toggle" method="post">
+        <button type="submit" style="margin:0;background:#6b7280">
+          {{ "deaktivieren" if klass.active else "aktivieren" }}
+        </button>
+      </form>
+      <form action="/admin/classes/{{ klass.id }}/delete" method="post"
+            onsubmit="return confirm('Klasse „{{ klass.name }}“ mit ALLEN Schülern und Abgaben unwiderruflich löschen?');">
+        <button type="submit" style="margin:0;background:#dc2626">löschen</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="subject" style="margin-top:0.75rem">Freigeschaltete Aufgaben:</div>
+  {% set assigned = assignments.get(klass.id, []) %}
+  <ul class="tasks" style="margin-top:0.4rem">
+    {% for task in tasks %}
+    <li class="topbar">
+      <span>{{ task.title }} <span class="subject">({{ task.slug }})</span></span>
+      <form action="/admin/assignments" method="post">
+        <input type="hidden" name="class_id" value="{{ klass.id }}">
+        <input type="hidden" name="task_slug" value="{{ task.slug }}">
+        {% if task.slug in assigned %}
+          <input type="hidden" name="action" value="unassign">
+          <button type="submit" style="margin:0;background:#dc2626">entfernen</button>
+        {% else %}
+          <input type="hidden" name="action" value="assign">
+          <button type="submit" style="margin:0">freischalten</button>
+        {% endif %}
+      </form>
+    </li>
+    {% else %}
+    <li class="subject">Noch keine Aufgaben vorhanden.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% else %}
+<p class="subject">Noch keine Klassen angelegt.</p>
+{% endfor %}
+{% endblock %}
