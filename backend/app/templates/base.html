@@ -3,27 +3,69 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <title>{% block title %}LUKA{% endblock %}</title>
-  <style>
-    :root { --blue: #2563eb; }
-    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #111; }
-    h1 { font-size: 1.6rem; }
-    a { color: var(--blue); }
-    .card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem 1.25rem; }
-    label { display: block; margin: 0.75rem 0 0.25rem; font-weight: 600; }
-    input[type=text] { width: 100%; box-sizing: border-box; font-size: 1rem; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; }
-    button { background: var(--blue); color: #fff; border: 0; border-radius: 6px; padding: 0.6rem 1.1rem; font-size: 1rem; cursor: pointer; margin-top: 1rem; }
-    .error { color: #dc2626; margin-top: 0.75rem; }
-    ul.tasks { list-style: none; padding: 0; }
-    ul.tasks li { border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.6rem; }
-    .subject { color: #6b7280; font-size: 0.9rem; }
-    .topbar { display: flex; justify-content: space-between; align-items: center; }
-    .badge { font-size: 0.8rem; font-weight: 600; padding: 0.15rem 0.6rem; border-radius: 999px; white-space: nowrap; }
-    .badge-done { background: #dcfce7; color: #166534; }
-    .badge-open { background: #f1f5f9; color: #64748b; }
-  </style>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <script>
+    // Vor dem ersten Rendern anwenden, um ein Aufblitzen des falschen
+    // Farbschemas (FOUC) zu vermeiden. Ohne gespeicherte Präferenz greift
+    // automatisch prefers-color-scheme (siehe styles.css).
+    (function () {
+      try {
+        var saved = localStorage.getItem("luka-theme");
+        if (saved === "light" || saved === "dark") {
+          document.documentElement.setAttribute("data-theme", saved);
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
-  {% block content %}{% endblock %}
+  <header class="app-bar">
+    <span class="app-bar__title">{% block appbar_title %}LUKA{% endblock %}</span>
+    <nav class="app-bar__nav">
+      {% block appbar_nav %}{% endblock %}
+      <button type="button" id="theme-toggle" class="icon-btn" title="Farbschema wechseln" aria-label="Hell-/Dunkel-Modus wechseln">
+        <span class="icon" id="theme-toggle-icon">dark_mode</span>
+      </button>
+    </nav>
+  </header>
+  <main class="page{% block page_class %}{% endblock %}">
+    {% block content %}{% endblock %}
+  </main>
+  <script>
+    (function () {
+      var mql = window.matchMedia("(prefers-color-scheme: dark)");
+      function getSaved() {
+        try { return localStorage.getItem("luka-theme"); } catch (e) { return null; }
+      }
+      function isDark() {
+        var saved = getSaved();
+        if (saved === "dark") return true;
+        if (saved === "light") return false;
+        return mql.matches;
+      }
+      function updateIcon() {
+        var icon = document.getElementById("theme-toggle-icon");
+        if (icon) icon.textContent = isDark() ? "light_mode" : "dark_mode";
+      }
+      updateIcon();
+      var btn = document.getElementById("theme-toggle");
+      if (btn) {
+        btn.addEventListener("click", function () {
+          var next = isDark() ? "light" : "dark";
+          try { localStorage.setItem("luka-theme", next); } catch (e) {}
+          document.documentElement.setAttribute("data-theme", next);
+          updateIcon();
+        });
+      }
+    })();
+
+    // QR-Code zum Vergrößern anklickbar machen (z.B. in der Klassenliste).
+    document.addEventListener("click", function (e) {
+      var chip = e.target.closest(".qr-chip");
+      if (chip) chip.classList.toggle("is-zoomed");
+    });
+  </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 {% block admin %}
 <h1>Schüler</h1>
 
-<form method="get" action="/admin/students" class="card" style="margin-bottom:1.5rem">
+<form method="get" action="/admin/students" class="card">
   <label for="class_id" style="margin-top:0">Klasse</label>
   <select id="class_id" name="class_id" onchange="this.form.submit()">
     <option value="">– wählen –</option>
@@ -22,19 +22,20 @@
 {% if sel_class %}
   <p class="subject">Namen sind case-insensitiv (anna = Anna).</p>
 
-  <table cellpadding="6" style="border-collapse:collapse;width:100%">
+  <div class="table-wrap">
+  <table>
     <thead>
-      <tr style="text-align:left;border-bottom:2px solid #e5e7eb">
+      <tr>
         <th>Anzeigename</th><th>Abgaben</th><th>Passwort</th><th></th>
       </tr>
     </thead>
     <tbody>
       {% for s in students %}
-      <tr style="border-bottom:1px solid #eee">
+      <tr>
         <td>
-          <form action="/admin/students/{{ s.id }}/rename" method="post" style="display:flex;gap:0.4rem">
+          <form action="/admin/students/{{ s.id }}/rename" method="post" class="field-inline">
             <input type="text" name="display_name" value="{{ s.display_name }}">
-            <button type="submit" style="margin:0">Speichern</button>
+            <button type="submit" class="btn-sm">Speichern</button>
           </form>
         </td>
         <td class="subject">{{ s.submissions }}</td>
@@ -45,15 +46,17 @@
           <span class="badge badge-open">nicht gesetzt</span>
           {% endif %}
         </td>
-        <td style="display:flex;gap:0.4rem">
+        <td>
+          <div class="cluster">
           <form action="/admin/students/{{ s.id }}/reset-password" method="post"
                 onsubmit="return confirm('Passwort von „{{ s.display_name }}“ zurücksetzen? Er/sie vergibt beim nächsten Login ein neues.');">
-            <button type="submit" style="margin:0;background:#6b7280">Passwort zurücksetzen</button>
+            <button type="submit" class="btn-tonal btn-sm">Passwort zurücksetzen</button>
           </form>
           <form action="/admin/students/{{ s.id }}/delete" method="post"
                 onsubmit="return confirm('Schüler „{{ s.display_name }}“ inkl. Abgaben löschen?');">
-            <button type="submit" style="margin:0;background:#dc2626">löschen</button>
+            <button type="submit" class="btn-danger btn-sm"><span class="icon">delete</span></button>
           </form>
+          </div>
         </td>
       </tr>
       {% else %}
@@ -61,5 +64,6 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 {% endif %}
 {% endblock %}

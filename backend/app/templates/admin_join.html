@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Lehrer-Registrierung – LUKA{% endblock %}
+{% block appbar_title %}Registrierung{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Als Lehrkraft registrieren</h1>
+  <p class="subject">
+    Trage den Einladungscode ein, den du von deiner Admin-Person erhalten hast,
+    und vergib einen Benutzernamen sowie ein Passwort.
+  </p>
+  <form method="post" action="/admin/join">
+    <label for="code">Einladungscode</label>
+    <input type="text" id="code" name="code" autocomplete="off" required
+           value="{{ prefill_code }}" style="text-transform:uppercase">
+
+    <label for="username">Benutzername</label>
+    <input type="text" id="username" name="username" autocomplete="username" required>
+
+    <label for="password">Passwort</label>
+    <input type="password" id="password" name="password" autocomplete="new-password" required>
+
+    <label for="password_confirm">Passwort wiederholen</label>
+    <input type="password" id="password_confirm" name="password_confirm" autocomplete="new-password" required>
+
+    <button type="submit">Konto anlegen</button>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  </form>
+</div>
+<p class="subject" style="margin-top:1rem"><a href="/admin/login">Bereits registriert? Zum Login</a></p>
+{% endblock %}

@@ -3,22 +3,23 @@
 {% block admin %}
 <h1>Klassen</h1>
 
-<div class="card" style="margin-bottom:1.5rem">
-  <form action="/admin/classes" method="post" style="display:flex;gap:0.5rem;align-items:flex-end">
-    <div style="flex:1">
+<div class="card">
+  <form action="/admin/classes" method="post" class="form-row">
+    <div class="field">
       <label for="name" style="margin-top:0">Neue Klasse</label>
       <input type="text" id="name" name="name" placeholder="z.B. 9b Mathe" required>
     </div>
-    <button type="submit" style="margin:0">Anlegen</button>
+    <button type="submit"><span class="icon">add</span> Anlegen</button>
   </form>
 </div>
 
 {% for klass in classes %}
-<div class="card" style="margin-bottom:1rem">
+<div class="card">
   <div class="topbar">
-    <div style="display:flex;gap:0.75rem;align-items:center">
-      <img src="/admin/classes/{{ klass.id }}/qr.svg" alt="QR-Code" width="72" height="72"
-           style="border:1px solid #e5e7eb;border-radius:6px">
+    <div class="cluster">
+      <span class="qr-chip">
+        <img src="/admin/classes/{{ klass.id }}/qr.svg" alt="QR-Code" width="60" height="60">
+      </span>
       <div>
         <strong>{{ klass.name }}</strong>
         {% if not klass.active %}<span class="error">(inaktiv)</span>{% endif %}
@@ -28,15 +29,15 @@
         </div>
       </div>
     </div>
-    <div style="display:flex;gap:0.5rem">
+    <div class="cluster">
       <form action="/admin/classes/{{ klass.id }}/toggle" method="post">
-        <button type="submit" style="margin:0;background:#6b7280">
+        <button type="submit" class="btn-tonal btn-sm">
           {{ "deaktivieren" if klass.active else "aktivieren" }}
         </button>
       </form>
       <form action="/admin/classes/{{ klass.id }}/delete" method="post"
             onsubmit="return confirm('Klasse „{{ klass.name }}“ mit ALLEN Schülern und Abgaben unwiderruflich löschen?');">
-        <button type="submit" style="margin:0;background:#dc2626">löschen</button>
+        <button type="submit" class="btn-danger btn-sm"><span class="icon">delete</span> löschen</button>
       </form>
     </div>
   </div>
@@ -52,10 +53,10 @@
         <input type="hidden" name="task_slug" value="{{ task.slug }}">
         {% if task.slug in assigned %}
           <input type="hidden" name="action" value="unassign">
-          <button type="submit" style="margin:0;background:#dc2626">entfernen</button>
+          <button type="submit" class="btn-danger btn-sm">entfernen</button>
         {% else %}
           <input type="hidden" name="action" value="assign">
-          <button type="submit" style="margin:0">freischalten</button>
+          <button type="submit" class="btn-tonal btn-sm">freischalten</button>
         {% endif %}
       </form>
     </li>

@@ -29,6 +29,25 @@ class Teacher(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
 
 
+class TeacherInvite(SQLModel, table=True):
+    """Einmal-Einladungscode, mit dem sich ein neuer Lehrer selbst registriert.
+
+    Analog zum Klassen-Beitrittscode (`Class.join_code`): der Admin generiert
+    den Code, der neue Lehrer vergibt sich damit selbst Benutzername/Passwort.
+    """
+
+    __tablename__ = "teacher_invites"
+
+    id: int | None = Field(default=None, primary_key=True)
+    code: str = Field(index=True, unique=True)
+    role: str = Field(default="teacher")  # Rolle, die der neue Account erhält
+    created_by_teacher_id: int = Field(foreign_key="teachers.id")
+    created_at: datetime = Field(default_factory=_now)
+    expires_at: datetime
+    used_at: datetime | None = Field(default=None)
+    used_by_teacher_id: int | None = Field(default=None, foreign_key="teachers.id")
+
+
 class Class(SQLModel, table=True):
     """Schulklasse mit eindeutigem Beitritts-Code."""
 

@@ -28,33 +28,70 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <title>{title}</title>
+  <link rel="stylesheet" href="/assets/styles.css">
   <style>
-    body {{ font-family: system-ui, sans-serif; margin: 0; line-height: 1.5; color: #111; }}
-    .luka-topbar {{ background: #f8fafc; border-bottom: 1px solid #e5e7eb; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 1rem; position: sticky; top: 0; }}
-    .luka-topbar a {{ color: #2563eb; text-decoration: none; font-weight: 600; }}
-    .luka-topbar .luka-title {{ color: #6b7280; font-weight: 400; }}
-    .luka-wrap {{ max-width: 720px; margin: 1.5rem auto; padding: 0 1rem; }}
-    input, select, textarea {{ font-size: 1rem; padding: 0.25rem 0.4rem; }}
-    .luka-bar {{ margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #ddd; display: flex; align-items: center; gap: 1rem; }}
-    .luka-btn {{ background: #2563eb; color: #fff; border: 0; border-radius: 6px; padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }}
-    .luka-btn:disabled {{ opacity: 0.6; cursor: default; }}
-    .luka-status {{ color: #16a34a; }}
-    .luka-status.error {{ color: #dc2626; }}
+    .luka-bar {{ margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--md-outline-variant); display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }}
+    .luka-status {{ color: var(--md-success); }}
+    .luka-status.error {{ color: var(--md-error); }}
   </style>
+  <script>
+    (function () {{
+      try {{
+        var saved = localStorage.getItem("luka-theme");
+        if (saved === "light" || saved === "dark") {{
+          document.documentElement.setAttribute("data-theme", saved);
+        }}
+      }} catch (e) {{}}
+    }})();
+  </script>
 </head>
 <body>
-  <header class="luka-topbar">
-    <a href="/aufgaben">&larr; Zurück zu den Aufgaben</a>
-    <span class="luka-title">{title}</span>
+  <header class="app-bar">
+    <a href="/aufgaben"><span class="icon">arrow_back</span> Zurück zu den Aufgaben</a>
+    <span class="app-bar__title subject">{title}</span>
+    <nav class="app-bar__nav">
+      <button type="button" id="theme-toggle" class="icon-btn" title="Farbschema wechseln" aria-label="Hell-/Dunkel-Modus wechseln">
+        <span class="icon" id="theme-toggle-icon">dark_mode</span>
+      </button>
+    </nav>
   </header>
-  <div class="luka-wrap">
-    <main id="luka-task-body">
+  <main class="page">
+    <div id="luka-task-body">
 {body}
-    </main>
-  </div>
+    </div>
+  </main>
   <script>window.LUKA_TASK = {task_json};</script>
   <script src="/static/luka.js"></script>
+  <script>
+    (function () {{
+      var mql = window.matchMedia("(prefers-color-scheme: dark)");
+      function getSaved() {{
+        try {{ return localStorage.getItem("luka-theme"); }} catch (e) {{ return null; }}
+      }}
+      function isDark() {{
+        var saved = getSaved();
+        if (saved === "dark") return true;
+        if (saved === "light") return false;
+        return mql.matches;
+      }}
+      function updateIcon() {{
+        var icon = document.getElementById("theme-toggle-icon");
+        if (icon) icon.textContent = isDark() ? "light_mode" : "dark_mode";
+      }}
+      updateIcon();
+      var btn = document.getElementById("theme-toggle");
+      if (btn) {{
+        btn.addEventListener("click", function () {{
+          var next = isDark() ? "light" : "dark";
+          try {{ localStorage.setItem("luka-theme", next); }} catch (e) {{}}
+          document.documentElement.setAttribute("data-theme", next);
+          updateIcon();
+        }});
+      }}
+    }})();
+  </script>
 </body>
 </html>
 """

@@ -20,6 +20,10 @@ DATABASE_URL = os.getenv("LUKA_DATABASE_URL", f"sqlite:///{DATABASE_PATH}")
 # Templates
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
+# Statische Assets (CSS, selbst gehostete Schriften) – ausschließlich lokal,
+# es werden bewusst KEINE Google-Font-CDN-Links verwendet (DSGVO).
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
 # Runtime-Assets (luka.js), die in Aufgaben injiziert werden
 RUNTIME_DIR = Path(os.getenv("LUKA_RUNTIME_DIR", BASE_DIR / "runtime"))
 

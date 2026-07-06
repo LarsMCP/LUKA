@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Anmelden – LUKA{% endblock %}
+{% block appbar_title %}Anmelden{% endblock %}
 {% block content %}
-<h1>LUKA – Anmelden</h1>
 <div class="card">
+  <h1>Willkommen bei LUKA</h1>
   <form id="login-form">
     <label for="join_code">Klassen-Code</label>
     <input type="text" id="join_code" name="join_code" autocomplete="off" required
@@ -15,13 +16,11 @@
     <div id="pw-section" hidden>
       <p class="subject" id="pw-hint"></p>
       <label for="password" id="password-label">Passwort</label>
-      <input type="password" id="password" autocomplete="off"
-             style="width:100%;box-sizing:border-box;font-size:1rem;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px">
+      <input type="password" id="password" autocomplete="off">
 
       <div id="confirm-wrap" hidden>
         <label for="password_confirm">Passwort wiederholen</label>
-        <input type="password" id="password_confirm" autocomplete="off"
-               style="width:100%;box-sizing:border-box;font-size:1rem;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px">
+        <input type="password" id="password_confirm" autocomplete="off">
       </div>
     </div>
 

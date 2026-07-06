@@ -1,14 +1,10 @@
 # Caddyfile für LUKA
 #
-# Lokaler Test: unter http://localhost erreichbar (automatisches HTTP).
-# Produktion: ersetze ":80" durch deine Domain (z.B. luka.example.de),
-# dann kümmert sich Caddy automatisch um HTTPS/Let's Encrypt.
+# nip.io kodiert die Server-IP im Hostnamen (kein eigener DNS-Eintrag nötig).
+# Caddy erkennt daran einen "echten" Hostnamen und holt automatisch ein
+# Let's-Encrypt-Zertifikat (HTTPS). WICHTIG: keinen Port (":80") anhängen,
+# sonst deaktiviert Caddy automatisches HTTPS.
 
-:80 {
+luka.167.233.225.216.nip.io {
 	reverse_proxy app:8000
 }
-
-# Produktionsbeispiel (auskommentiert):
-# luka.example.de {
-# 	reverse_proxy app:8000
-# }

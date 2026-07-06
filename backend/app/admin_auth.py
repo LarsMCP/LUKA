@@ -65,3 +65,21 @@ def get_current_teacher(
     if teacher is None:
         raise HTTPException(status_code=401, detail="Nicht als Lehrer eingeloggt")
     return teacher
+
+
+def require_admin(
+    teacher: Teacher | None = Depends(get_optional_teacher),
+) -> Teacher:
+    """Dependency für Routen, die ausschließlich der Rolle "admin" vorbehalten sind."""
+    if teacher is None:
+        raise HTTPException(status_code=401, detail="Nicht als Lehrer eingeloggt")
+    if teacher.role != "admin":
+        raise HTTPException(status_code=403, detail="Nur für Admins verfügbar")
+    return teacher
+
+
+def can_access_class(teacher: Teacher, klass) -> bool:
+    """Admins sehen alles; Lehrer nur ihre eigenen Klassen."""
+    if teacher.role == "admin":
+        return True
+    return klass is not None and klass.owner_teacher_id == teacher.id

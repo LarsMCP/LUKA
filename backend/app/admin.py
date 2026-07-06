@@ -9,6 +9,7 @@ import csv
 import io
 import json
 import secrets
+from datetime import datetime, timedelta
 
 import segno
 from fastapi import APIRouter, Depends, Form, Request, Response
@@ -18,15 +19,29 @@ from sqlmodel import Session, select
 
 from .admin_auth import (
     ADMIN_COOKIE,
+    can_access_class,
     clear_admin_session,
     create_admin_session,
     get_optional_teacher,
+    require_admin,
     verify_password,
 )
 from .database import get_session
 from .discovery import scan_tasks
-from .models import Assignment, Class, SessionToken, Student, Submission, Task, Teacher
+from .models import (
+    Assignment,
+    Class,
+    SessionToken,
+    Student,
+    Submission,
+    Task,
+    Teacher,
+    TeacherInvite,
+)
+from .security import hash_password
 from .templating import templates
+
+INVITE_TTL = timedelta(days=7)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -41,8 +56,32 @@ def _generate_join_code(db: Session, length: int = 6) -> str:
             return code
 
 
+def _generate_invite_code(db: Session, length: int = 10) -> str:
+    while True:
+        code = "".join(secrets.choice(_CODE_ALPHABET) for _ in range(length))
+        if db.exec(select(TeacherInvite).where(TeacherInvite.code == code)).first() is None:
+            return code
+
+
 def _login_redirect() -> RedirectResponse:
     return RedirectResponse(url="/admin/login", status_code=303)
+
+
+def _visible_classes(db: Session, teacher: Teacher) -> list[Class]:
+    """Klassen, die der Lehrer sehen darf: admin = alle, teacher = nur eigene."""
+    if teacher.role == "admin":
+        return list(db.exec(select(Class)).all())
+    return list(db.exec(select(Class).where(Class.owner_teacher_id == teacher.id)).all())
+
+
+def _get_accessible_class(db: Session, teacher: Teacher, class_id: int | None) -> Class | None:
+    """Lädt eine Klasse nur, wenn der Lehrer darauf zugreifen darf."""
+    if class_id is None:
+        return None
+    klass = db.get(Class, class_id)
+    if klass is None or not can_access_class(teacher, klass):
+        return None
+    return klass
 
 
 # ---------------------------------------------------------------------------
@@ -99,11 +138,24 @@ def dashboard(
 ):
     if teacher is None:
         return _login_redirect()
+    classes = _visible_classes(db, teacher)
+    class_ids = [c.id for c in classes]
+    students = (
+        db.exec(select(Student)).all()
+        if teacher.role == "admin"
+        else db.exec(select(Student).where(Student.class_id.in_(class_ids))).all()
+    )
+    student_ids = [s.id for s in students]
+    submissions = (
+        db.exec(select(Submission)).all()
+        if teacher.role == "admin"
+        else db.exec(select(Submission).where(Submission.student_id.in_(student_ids))).all()
+    )
     counts = {
-        "classes": len(db.exec(select(Class)).all()),
+        "classes": len(classes),
         "tasks": len(db.exec(select(Task)).all()),
-        "students": len(db.exec(select(Student)).all()),
-        "submissions": len(db.exec(select(Submission)).all()),
+        "students": len(students),
+        "submissions": len(submissions),
     }
     return templates.TemplateResponse(
         request, "admin_dashboard.html", {"teacher": teacher, "counts": counts}
@@ -123,12 +175,14 @@ def classes_page(
     if teacher is None:
         return _login_redirect()
 
-    classes = db.exec(select(Class)).all()
+    classes = _visible_classes(db, teacher)
     tasks = db.exec(select(Task)).all()
     # Freischaltungen je Klasse als Set von Slugs.
     assignments: dict[int, set[str]] = {}
+    class_ids = {c.id for c in classes}
     for a in db.exec(select(Assignment).where(Assignment.active == True)).all():  # noqa: E712
-        assignments.setdefault(a.class_id, set()).add(a.task_slug)
+        if a.class_id in class_ids:
+            assignments.setdefault(a.class_id, set()).add(a.task_slug)
 
     return templates.TemplateResponse(
         request,
@@ -165,7 +219,7 @@ def toggle_class(
 ):
     if teacher is None:
         return _login_redirect()
-    klass = db.get(Class, class_id)
+    klass = _get_accessible_class(db, teacher, class_id)
     if klass is not None:
         klass.active = not klass.active
         db.add(klass)
@@ -183,7 +237,7 @@ def delete_class(
     if teacher is None:
         return _login_redirect()
 
-    klass = db.get(Class, class_id)
+    klass = _get_accessible_class(db, teacher, class_id)
     if klass is not None:
         students = db.exec(select(Student).where(Student.class_id == class_id)).all()
         for student in students:
@@ -221,7 +275,7 @@ def class_qr_svg(
     """QR-Code (SVG) mit der Beitritts-URL der Klasse."""
     if teacher is None:
         return _login_redirect()
-    klass = db.get(Class, class_id)
+    klass = _get_accessible_class(db, teacher, class_id)
     if klass is None:
         return Response(status_code=404)
 
@@ -242,7 +296,7 @@ def class_qr_page(
     """Druckbare QR-Code-Seite zum Aushängen/Projizieren."""
     if teacher is None:
         return _login_redirect()
-    klass = db.get(Class, class_id)
+    klass = _get_accessible_class(db, teacher, class_id)
     if klass is None:
         return RedirectResponse(url="/admin/classes", status_code=303)
     return templates.TemplateResponse(
@@ -265,6 +319,8 @@ def update_assignment(
     db: Session = Depends(get_session),
 ):
     if teacher is None:
+        return _login_redirect()
+    if _get_accessible_class(db, teacher, class_id) is None:
         return _login_redirect()
 
     existing = db.exec(
@@ -330,9 +386,10 @@ def students_page(
     if teacher is None:
         return _login_redirect()
 
-    classes = db.exec(select(Class)).all()
+    classes = _visible_classes(db, teacher)
+    accessible_class = _get_accessible_class(db, teacher, class_id)
     students: list[dict] = []
-    if class_id is not None:
+    if accessible_class is not None:
         stmt = (
             select(Student)
             .where(Student.class_id == class_id)
@@ -356,7 +413,7 @@ def students_page(
             "teacher": teacher,
             "classes": classes,
             "students": students,
-            "sel_class": class_id,
+            "sel_class": accessible_class.id if accessible_class else None,
             "error": error,
         },
     )
@@ -373,7 +430,7 @@ def student_rename(
         return _login_redirect()
 
     student = db.get(Student, student_id)
-    if student is None:
+    if student is None or _get_accessible_class(db, teacher, student.class_id) is None:
         return RedirectResponse(url="/admin/students", status_code=303)
 
     new_name = display_name.strip()
@@ -412,7 +469,7 @@ def student_reset_password(
         return _login_redirect()
 
     student = db.get(Student, student_id)
-    if student is None:
+    if student is None or _get_accessible_class(db, teacher, student.class_id) is None:
         return RedirectResponse(url="/admin/students", status_code=303)
 
     student.password_hash = None
@@ -436,7 +493,7 @@ def student_delete(
         return _login_redirect()
 
     student = db.get(Student, student_id)
-    if student is None:
+    if student is None or _get_accessible_class(db, teacher, student.class_id) is None:
         return RedirectResponse(url="/admin/students", status_code=303)
 
     class_id = student.class_id
@@ -502,12 +559,13 @@ def submissions_page(
     if teacher is None:
         return _login_redirect()
 
-    classes = db.exec(select(Class)).all()
+    classes = _visible_classes(db, teacher)
+    accessible_class = _get_accessible_class(db, teacher, class_id)
     tasks: list[Task] = []
     rows: list[dict] = []
     keys: list[str] = []
 
-    if class_id is not None:
+    if accessible_class is not None:
         # Nur der Klasse freigeschaltete Aufgaben zur Auswahl.
         stmt = (
             select(Task)
@@ -516,7 +574,7 @@ def submissions_page(
         )
         tasks = list(db.exec(stmt).all())
 
-    if class_id is not None and task_slug:
+    if accessible_class is not None and task_slug:
         rows = _latest_submissions(db, class_id, task_slug)
         keys = _answer_keys(rows)
 
@@ -529,7 +587,7 @@ def submissions_page(
             "tasks": tasks,
             "rows": rows,
             "keys": keys,
-            "sel_class": class_id,
+            "sel_class": accessible_class.id if accessible_class else None,
             "sel_task": task_slug,
             "format_answer": _format_answer,
         },
@@ -545,7 +603,7 @@ def submissions_csv(
 ):
     if teacher is None:
         return _login_redirect()
-    if class_id is None or not task_slug:
+    if _get_accessible_class(db, teacher, class_id) is None or not task_slug:
         return RedirectResponse(url="/admin/submissions", status_code=303)
 
     rows = _latest_submissions(db, class_id, task_slug)
@@ -570,3 +628,157 @@ def submissions_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ---------------------------------------------------------------------------
+# Lehrerverwaltung (nur Admins) + Einladungscode-Registrierung (öffentlich)
+# ---------------------------------------------------------------------------
+
+@router.get("/teachers", response_class=HTMLResponse, include_in_schema=False)
+def teachers_page(
+    request: Request,
+    teacher: Teacher = Depends(require_admin),
+    db: Session = Depends(get_session),
+):
+    teachers = db.exec(select(Teacher).order_by(Teacher.created_at)).all()
+    now = datetime.utcnow()
+    invites = db.exec(
+        select(TeacherInvite)
+        .where(TeacherInvite.used_at == None)  # noqa: E711
+        .order_by(TeacherInvite.created_at.desc())
+    ).all()
+    admin_count = len([t for t in teachers if t.role == "admin"])
+    return templates.TemplateResponse(
+        request,
+        "admin_teachers.html",
+        {
+            "teacher": teacher,
+            "teachers": teachers,
+            "invites": invites,
+            "now": now,
+            "admin_count": admin_count,
+            "join_base_url": str(request.base_url).rstrip("/") + "/admin/join",
+        },
+    )
+
+
+@router.post("/teachers/invite", include_in_schema=False)
+def create_teacher_invite(
+    teacher: Teacher = Depends(require_admin),
+    role: str = Form("teacher"),
+    db: Session = Depends(get_session),
+):
+    role = role if role in ("admin", "teacher") else "teacher"
+    invite = TeacherInvite(
+        code=_generate_invite_code(db),
+        role=role,
+        created_by_teacher_id=teacher.id,
+        expires_at=datetime.utcnow() + INVITE_TTL,
+    )
+    db.add(invite)
+    db.commit()
+    return RedirectResponse(url="/admin/teachers", status_code=303)
+
+
+@router.post("/teachers/invites/{invite_id}/revoke", include_in_schema=False)
+def revoke_teacher_invite(
+    invite_id: int,
+    teacher: Teacher = Depends(require_admin),
+    db: Session = Depends(get_session),
+):
+    invite = db.get(TeacherInvite, invite_id)
+    if invite is not None and invite.used_at is None:
+        db.delete(invite)
+        db.commit()
+    return RedirectResponse(url="/admin/teachers", status_code=303)
+
+
+@router.post("/teachers/{teacher_id}/delete", include_in_schema=False)
+def delete_teacher(
+    teacher_id: int,
+    teacher: Teacher = Depends(require_admin),
+    db: Session = Depends(get_session),
+):
+    target = db.get(Teacher, teacher_id)
+    if target is None:
+        return RedirectResponse(url="/admin/teachers", status_code=303)
+    if target.id == teacher.id:
+        return RedirectResponse(url="/admin/teachers?error=self", status_code=303)
+    if target.role == "admin":
+        admin_count = len(
+            db.exec(select(Teacher).where(Teacher.role == "admin")).all()
+        )
+        if admin_count <= 1:
+            return RedirectResponse(url="/admin/teachers?error=last_admin", status_code=303)
+
+    # Klassen des gelöschten Lehrers nicht verwaisen lassen: dem löschenden
+    # Admin zuordnen, damit sie weiterhin verwaltbar bleiben.
+    for klass in db.exec(select(Class).where(Class.owner_teacher_id == target.id)).all():
+        klass.owner_teacher_id = teacher.id
+        db.add(klass)
+
+    db.delete(target)
+    db.commit()
+    return RedirectResponse(url="/admin/teachers", status_code=303)
+
+
+@router.get("/join", response_class=HTMLResponse, include_in_schema=False)
+def teacher_join_page(request: Request, code: str = ""):
+    """Öffentliche Registrierungsseite für neue Lehrer via Einladungscode."""
+    return templates.TemplateResponse(
+        request, "admin_join.html", {"prefill_code": code, "error": None}
+    )
+
+
+@router.post("/join", include_in_schema=False)
+def teacher_join_submit(
+    request: Request,
+    code: str = Form(...),
+    username: str = Form(...),
+    password: str = Form(...),
+    password_confirm: str = Form(...),
+    db: Session = Depends(get_session),
+):
+    def fail(message: str, status_code: int = 400):
+        return templates.TemplateResponse(
+            request,
+            "admin_join.html",
+            {"prefill_code": code, "error": message},
+            status_code=status_code,
+        )
+
+    invite = db.exec(select(TeacherInvite).where(TeacherInvite.code == code.strip().upper())).first()
+    if invite is None:
+        return fail("Ungültiger Einladungscode.")
+    if invite.used_at is not None:
+        return fail("Dieser Einladungscode wurde bereits verwendet.")
+    if invite.expires_at < datetime.utcnow():
+        return fail("Dieser Einladungscode ist abgelaufen.")
+
+    username = username.strip()
+    if not username:
+        return fail("Bitte einen Benutzernamen angeben.")
+    if len(password) < 8:
+        return fail("Das Passwort sollte mindestens 8 Zeichen haben.")
+    if password != password_confirm:
+        return fail("Die Passwörter stimmen nicht überein.")
+    if db.exec(select(Teacher).where(Teacher.username == username)).first() is not None:
+        return fail("Dieser Benutzername ist bereits vergeben.")
+
+    new_teacher = Teacher(
+        username=username,
+        password_hash=hash_password(password),
+        role=invite.role,
+    )
+    db.add(new_teacher)
+    db.flush()
+
+    invite.used_at = datetime.utcnow()
+    invite.used_by_teacher_id = new_teacher.id
+    db.add(invite)
+    db.commit()
+    db.refresh(new_teacher)
+
+    redirect = RedirectResponse(url="/admin", status_code=303)
+    create_admin_session(db, new_teacher.id, redirect)
+    return redirect

@@ -1,0 +1,685 @@
+/*
+ * LUKA – Material-3-inspiriertes Design-System.
+ * Reines CSS, kein Build-Schritt. Schriften werden ausschließlich lokal
+ * ausgeliefert (siehe @font-face unten) – bewusst KEIN Google-Fonts-CDN,
+ * um DSGVO-Probleme durch IP-Übertragung an Google zu vermeiden.
+ */
+
+/* ---------- Selbst gehostete Schriften ---------- */
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/assets/fonts/roboto/roboto_5.2.10_latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/assets/fonts/roboto/roboto_5.2.10_latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/assets/fonts/roboto/roboto_5.2.10_latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/assets/fonts/material-symbols/material-symbols-outlined_5.2.45_latin-400-normal.woff2") format("woff2");
+}
+
+.icon {
+  font-family: "Material Symbols Outlined", sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 1.25rem;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  display: inline-flex;
+  vertical-align: middle;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* ---------- Design-Tokens: Farben (Material 3, Blau-Seed #2563eb) ---------- */
+:root {
+  color-scheme: light;
+
+  --md-primary: #2f5fd8;
+  --md-on-primary: #ffffff;
+  --md-primary-container: #dbe1ff;
+  --md-on-primary-container: #001947;
+
+  --md-secondary: #575e71;
+  --md-on-secondary: #ffffff;
+  --md-secondary-container: #dbe2f9;
+  --md-on-secondary-container: #141b2c;
+
+  --md-error: #ba1a1a;
+  --md-on-error: #ffffff;
+  --md-error-container: #ffdad6;
+  --md-on-error-container: #410002;
+
+  --md-success: #146c2e;
+  --md-on-success: #ffffff;
+  --md-success-container: #c3f2cb;
+  --md-on-success-container: #002107;
+
+  --md-surface: #fbf8ff;
+  --md-surface-dim: #dbd9e0;
+  --md-surface-container-lowest: #ffffff;
+  --md-surface-container-low: #f5f2fb;
+  --md-surface-container: #efedf5;
+  --md-surface-container-high: #e9e7f0;
+  --md-surface-container-highest: #e3e2ea;
+  --md-on-surface: #1a1b21;
+  --md-on-surface-variant: #45464f;
+
+  --md-outline: #767680;
+  --md-outline-variant: #c6c6d0;
+
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 3px 1px rgba(0, 0, 0, 0.10);
+  --elevation-2: 0 1px 2px rgba(0, 0, 0, 0.24), 0 2px 6px 2px rgba(0, 0, 0, 0.10);
+  --elevation-3: 0 4px 8px 3px rgba(0, 0, 0, 0.10), 0 1px 3px rgba(0, 0, 0, 0.24);
+
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+  --radius-xl: 28px;
+  --radius-full: 999px;
+
+  --font-sans: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/*
+ * Dunkles Farbschema: greift automatisch über prefers-color-scheme, kann
+ * aber per data-theme-Attribut (siehe Theme-Switch in base.html) manuell
+ * erzwungen bzw. auf "light" zurückgesetzt werden.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --md-primary: #b3c5ff;
+    --md-on-primary: #00297a;
+    --md-primary-container: #123f9f;
+    --md-on-primary-container: #dbe1ff;
+
+    --md-secondary: #bfc6dc;
+    --md-on-secondary: #293042;
+    --md-secondary-container: #3f4759;
+    --md-on-secondary-container: #dbe2f9;
+
+    --md-error: #ffb4ab;
+    --md-on-error: #690005;
+    --md-error-container: #93000a;
+    --md-on-error-container: #ffdad6;
+
+    --md-success: #8ed99f;
+    --md-on-success: #00390e;
+    --md-success-container: #005318;
+    --md-on-success-container: #c3f2cb;
+
+    --md-surface: #131318;
+    --md-surface-dim: #131318;
+    --md-surface-container-lowest: #0e0e13;
+    --md-surface-container-low: #1c1c22;
+    --md-surface-container: #202026;
+    --md-surface-container-high: #2a2a31;
+    --md-surface-container-highest: #35353c;
+    --md-on-surface: #e3e2ea;
+    --md-on-surface-variant: #c6c6d0;
+
+    --md-outline: #90909a;
+    --md-outline-variant: #45464f;
+
+    --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 3px 1px rgba(0, 0, 0, 0.3);
+    --elevation-2: 0 1px 2px rgba(0, 0, 0, 0.5), 0 2px 6px 2px rgba(0, 0, 0, 0.3);
+    --elevation-3: 0 4px 8px 3px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.5);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --md-primary: #b3c5ff;
+  --md-on-primary: #00297a;
+  --md-primary-container: #123f9f;
+  --md-on-primary-container: #dbe1ff;
+
+  --md-secondary: #bfc6dc;
+  --md-on-secondary: #293042;
+  --md-secondary-container: #3f4759;
+  --md-on-secondary-container: #dbe2f9;
+
+  --md-error: #ffb4ab;
+  --md-on-error: #690005;
+  --md-error-container: #93000a;
+  --md-on-error-container: #ffdad6;
+
+  --md-success: #8ed99f;
+  --md-on-success: #00390e;
+  --md-success-container: #005318;
+  --md-on-success-container: #c3f2cb;
+
+  --md-surface: #131318;
+  --md-surface-dim: #131318;
+  --md-surface-container-lowest: #0e0e13;
+  --md-surface-container-low: #1c1c22;
+  --md-surface-container: #202026;
+  --md-surface-container-high: #2a2a31;
+  --md-surface-container-highest: #35353c;
+  --md-on-surface: #e3e2ea;
+  --md-on-surface-variant: #c6c6d0;
+
+  --md-outline: #90909a;
+  --md-outline-variant: #45464f;
+
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 3px 1px rgba(0, 0, 0, 0.3);
+  --elevation-2: 0 1px 2px rgba(0, 0, 0, 0.5), 0 2px 6px 2px rgba(0, 0, 0, 0.3);
+  --elevation-3: 0 4px 8px 3px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- Reset & Basis-Typografie ---------- */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--md-on-surface);
+  background: var(--md-surface);
+  min-height: 100vh;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  line-height: 1.25;
+  margin: 0 0 0.5rem;
+  color: var(--md-on-surface);
+}
+
+h1 { font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2rem); font-weight: 700; }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 1.05rem; }
+
+a {
+  color: var(--md-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+a:hover, a:focus-visible {
+  text-decoration: underline;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--md-surface-container-high);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-s);
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--md-outline-variant);
+  margin: 1rem 0;
+}
+
+/* ---------- Layout ---------- */
+.page {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+}
+
+.page--wide {
+  max-width: 1080px;
+}
+
+@media (min-width: 600px) {
+  .page { padding: 2rem 1.5rem 3rem; }
+}
+
+/* ---------- Top App Bar ---------- */
+.app-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--md-surface-container);
+  border-bottom: 1px solid var(--md-outline-variant);
+  min-height: 64px;
+}
+
+.app-bar__title {
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--md-on-surface);
+  white-space: nowrap;
+}
+
+.app-bar__nav {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  font-size: 0.9rem;
+}
+
+.app-bar__nav a,
+.app-bar__nav button.link {
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-full);
+  color: var(--md-on-surface-variant);
+  font-weight: 500;
+}
+
+.app-bar__nav a:hover,
+.app-bar__nav button.link:hover {
+  background: var(--md-surface-container-high);
+  text-decoration: none;
+}
+
+.app-bar__nav a.active {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+@media (max-width: 640px) {
+  .app-bar { flex-wrap: wrap; }
+  .app-bar__nav { width: 100%; margin-left: 0; justify-content: flex-start; }
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  margin: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  box-shadow: none;
+}
+.icon-btn:hover {
+  background: var(--md-surface-container-high);
+  filter: none;
+  box-shadow: none;
+}
+
+/* ---------- Topbar (Seiten-Header, z.B. "Aufgaben" + Aktionen) ---------- */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* ---------- Cards / Surfaces ---------- */
+.card {
+  background: var(--md-surface-container-low);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--radius-l);
+  padding: 1.25rem;
+  box-shadow: var(--elevation-1);
+}
+
+.card + .card {
+  margin-top: 1rem;
+}
+
+.subject {
+  color: var(--md-on-surface-variant);
+  font-size: 0.875rem;
+}
+
+.error {
+  color: var(--md-error);
+  font-size: 0.875rem;
+  margin-top: 0.75rem;
+}
+
+.success-text {
+  color: var(--md-success);
+  font-size: 0.9rem;
+}
+
+/* ---------- Formulare / Text-Fields ---------- */
+label {
+  display: block;
+  margin: 0.9rem 0 0.3rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--md-on-surface-variant);
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="search"],
+select,
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--md-outline);
+  border-radius: var(--radius-s);
+  background: var(--md-surface-container-lowest);
+  color: var(--md-on-surface);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+input[type="search"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--md-primary);
+  box-shadow: 0 0 0 1px var(--md-primary);
+}
+
+::placeholder {
+  color: var(--md-on-surface-variant);
+  opacity: 0.7;
+}
+
+/* ---------- Buttons ---------- */
+a.btn,
+a.btn:hover,
+a.btn:focus-visible {
+  text-decoration: none;
+}
+
+button,
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 0;
+  border-radius: var(--radius-full);
+  padding: 0.65rem 1.35rem;
+  min-height: 40px;
+  cursor: pointer;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  box-shadow: var(--elevation-1);
+  transition: box-shadow 0.15s ease, filter 0.15s ease;
+  margin-top: 1rem;
+}
+
+button:hover,
+.btn:hover {
+  box-shadow: var(--elevation-2);
+  filter: brightness(1.06);
+}
+
+button:disabled,
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  box-shadow: none;
+  filter: none;
+}
+
+.btn-outlined {
+  background: transparent;
+  color: var(--md-primary);
+  border: 1px solid var(--md-outline);
+  box-shadow: none;
+}
+.btn-outlined:hover {
+  background: var(--md-surface-container-high);
+  filter: none;
+  box-shadow: none;
+}
+
+.btn-text {
+  background: transparent;
+  color: var(--md-primary);
+  box-shadow: none;
+  padding: 0.5rem 0.75rem;
+}
+.btn-text:hover {
+  background: var(--md-surface-container-high);
+  filter: none;
+  box-shadow: none;
+}
+
+.btn-tonal {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+  box-shadow: none;
+}
+.btn-tonal:hover {
+  filter: brightness(0.97);
+  box-shadow: none;
+}
+
+.btn-danger {
+  background: var(--md-error-container);
+  color: var(--md-on-error-container);
+  box-shadow: none;
+}
+.btn-danger:hover {
+  filter: brightness(0.97);
+  box-shadow: none;
+}
+
+.btn-sm {
+  min-height: 32px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.825rem;
+  margin-top: 0;
+}
+
+/* Buttons, die wie unauffällige Links aussehen sollen (z.B. "abmelden") */
+button.link {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  color: var(--md-primary);
+  padding: 0;
+  margin: 0;
+  min-height: auto;
+  font-weight: 500;
+  border-radius: 0;
+}
+button.link:hover {
+  filter: none;
+  box-shadow: none;
+  text-decoration: underline;
+}
+
+/* ---------- Badges / Chips ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.7rem;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.badge-done {
+  background: var(--md-success-container);
+  color: var(--md-on-success-container);
+}
+.badge-open {
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+}
+
+/* ---------- Aufgabenliste ---------- */
+ul.tasks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+ul.tasks li {
+  background: var(--md-surface-container-low);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--radius-m);
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 0.6rem;
+}
+
+/* ---------- Tabellen (responsive) ---------- */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--md-outline-variant);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  background: var(--md-surface-container-lowest);
+}
+
+table th,
+table td {
+  text-align: left;
+  padding: 0.65rem 0.9rem;
+  white-space: nowrap;
+}
+
+table thead th {
+  background: var(--md-surface-container);
+  color: var(--md-on-surface-variant);
+  font-weight: 600;
+  border-bottom: 1px solid var(--md-outline-variant);
+}
+
+table tbody tr {
+  border-bottom: 1px solid var(--md-outline-variant);
+}
+table tbody tr:last-child {
+  border-bottom: none;
+}
+table tbody tr:hover {
+  background: var(--md-surface-container-low);
+}
+
+/* ---------- Layout-Helfer ---------- */
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.form-row > .field {
+  flex: 1;
+  min-width: 180px;
+}
+
+.field-inline {
+  display: flex;
+  gap: 0.4rem;
+}
+.field-inline input {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .form-row { flex-direction: column; align-items: stretch; }
+}
+
+/* ---------- QR-Karte ---------- */
+/* QR-Codes brauchen unabhängig vom Farbschema einen hellen Hintergrund,
+   sonst sind sie im Dark Mode kaum lesbar/scanbar. */
+.qr-chip {
+  display: inline-block;
+  background: #ffffff;
+  padding: 6px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--md-outline-variant);
+  line-height: 0;
+  cursor: zoom-in;
+  transform-origin: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.qr-chip.is-zoomed {
+  position: relative;
+  z-index: 20;
+  transform: scale(2);
+  box-shadow: var(--elevation-3);
+  cursor: zoom-out;
+}
+
+.qr-card {
+  text-align: center;
+  max-width: 420px;
+  margin: 1rem auto;
+}
+.qr-card__img {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  display: block;
+}
+.qr-code {
+  font-size: 1.6rem;
+  letter-spacing: 0.15em;
+  font-weight: 700;
+}
+
+/* ---------- Print (z.B. QR-Karte) ---------- */
+@media print {
+  .app-bar, .no-print, hr { display: none !important; }
+  body { margin: 0; background: #fff; }
+  .qr-card { box-shadow: none; border: none; }
+}

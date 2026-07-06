@@ -8,11 +8,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
 from .admin import router as admin_router
 from .auth import get_optional_student
-from .config import RUNTIME_DIR
+from .config import RUNTIME_DIR, STATIC_DIR
 from .database import get_session, init_db
 from .discovery import read_task_html, scan_tasks
 from .models import Assignment, Student, Task
@@ -39,6 +40,10 @@ app = FastAPI(
 
 app.include_router(student_router)
 app.include_router(admin_router)
+
+# Selbst gehostetes CSS + Schriften (Roboto, Material Symbols) – bewusst kein
+# Google-CDN, um DSGVO-Probleme durch IP-Übertragung an Google zu vermeiden.
+app.mount("/assets", StaticFiles(directory=STATIC_DIR), name="assets")
 
 
 @app.get("/health", tags=["system"])

@@ -1,18 +1,17 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="topbar">
-  <strong>LUKA Admin</strong>
-  <nav class="subject">
-    <a href="/admin">Start</a> &middot;
-    <a href="/admin/classes">Klassen</a> &middot;
-    <a href="/admin/students">Schüler</a> &middot;
-    <a href="/admin/tasks">Aufgaben</a> &middot;
-    <a href="/admin/submissions">Ergebnisse</a> &middot;
-    <form action="/admin/logout" method="post" style="display:inline">
-      <button type="submit" style="background:none;border:0;color:var(--blue);padding:0;margin:0;cursor:pointer;font-size:0.9rem">abmelden</button>
-    </form>
-  </nav>
-</div>
-<hr>
-{% block admin %}{% endblock %}
+{% block appbar_title %}LUKA Admin{% endblock %}
+{% block appbar_nav %}
+<a href="/admin">Start</a>
+<a href="/admin/classes">Klassen</a>
+<a href="/admin/students">Schüler</a>
+<a href="/admin/tasks">Aufgaben</a>
+<a href="/admin/submissions">Ergebnisse</a>
+{% if teacher and teacher.role == "admin" %}
+<a href="/admin/teachers">Lehrer</a>
+{% endif %}
+<form action="/admin/logout" method="post" style="display:inline">
+  <button type="submit" class="link"><span class="icon">logout</span> abmelden</button>
+</form>
 {% endblock %}
+{% block page_class %} page--wide{% endblock %}
+{% block content %}{% block admin %}{% endblock %}{% endblock %}

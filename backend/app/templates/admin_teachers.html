@@ -1,0 +1,88 @@
+{% extends "admin_base.html" %}
+{% block title %}Lehrer – LUKA{% endblock %}
+{% block admin %}
+<h1>Lehrer</h1>
+
+{% if error == 'self' %}
+<p class="error">Du kannst dein eigenes Konto nicht löschen.</p>
+{% elif error == 'last_admin' %}
+<p class="error">Der letzte verbleibende Admin kann nicht gelöscht werden.</p>
+{% endif %}
+
+<div class="card">
+  <h2>Einladungscode erzeugen</h2>
+  <p class="subject">
+    Neue Lehrkräfte registrieren sich selbst unter
+    <code>{{ join_base_url }}</code> mit diesem Code. Gültig 7 Tage, danach verbraucht.
+  </p>
+  <form action="/admin/teachers/invite" method="post" class="form-row">
+    <div class="field">
+      <label for="role" style="margin-top:0">Rolle</label>
+      <select id="role" name="role">
+        <option value="teacher">Lehrer (nur eigene Klassen)</option>
+        <option value="admin">Admin (voller Zugriff)</option>
+      </select>
+    </div>
+    <button type="submit"><span class="icon">add</span> Code erzeugen</button>
+  </form>
+</div>
+
+{% if invites %}
+<div class="card">
+  <h2>Offene Einladungscodes</h2>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Code</th><th>Rolle</th><th>Gültig bis</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for invite in invites %}
+      <tr>
+        <td><code>{{ invite.code }}</code></td>
+        <td class="subject">{{ invite.role }}</td>
+        <td class="subject">
+          {{ invite.expires_at.strftime('%Y-%m-%d %H:%M') }}
+          {% if invite.expires_at < now %}<span class="badge badge-open">abgelaufen</span>{% endif %}
+        </td>
+        <td>
+          <form action="/admin/teachers/invites/{{ invite.id }}/revoke" method="post"
+                onsubmit="return confirm('Einladungscode widerrufen?');">
+            <button type="submit" class="btn-danger btn-sm"><span class="icon">delete</span></button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Bestehende Konten</h2>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Benutzername</th><th>Rolle</th><th>Angelegt am</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for t in teachers %}
+      <tr>
+        <td>{{ t.username }}{% if t.id == teacher.id %} <span class="subject">(du)</span>{% endif %}</td>
+        <td class="subject">{{ t.role }}</td>
+        <td class="subject">{{ t.created_at.strftime('%Y-%m-%d') }}</td>
+        <td>
+          {% if t.id != teacher.id %}
+          <form action="/admin/teachers/{{ t.id }}/delete" method="post"
+                onsubmit="return confirm('Konto „{{ t.username }}“ löschen?');">
+            <button type="submit" class="btn-danger btn-sm"><span class="icon">delete</span></button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}

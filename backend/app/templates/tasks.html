@@ -1,15 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Aufgaben – LUKA{% endblock %}
+{% block appbar_title %}Aufgaben{% endblock %}
+{% block appbar_nav %}
+<span class="subject">{{ student.display_name }}</span>
+<a href="/passwort">Passwort ändern</a>
+<a href="#" id="logout"><span class="icon">logout</span> abmelden</a>
+{% endblock %}
 {% block content %}
-<div class="topbar">
-  <h1>Aufgaben</h1>
-  <span class="subject">
-    {{ student.display_name }} &middot;
-    <a href="/passwort">Passwort ändern</a> &middot;
-    <a href="#" id="logout">abmelden</a>
-  </span>
-</div>
-
 {% if tasks %}
 <ul class="tasks">
   {% for task in tasks %}
