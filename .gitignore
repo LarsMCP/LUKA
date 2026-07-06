@@ -50,8 +50,7 @@ Thumbs.db
 *.log
 logs/
 
-# Runtime
-runtime/*.js
+# Node
 node_modules/
 
 # Docker
