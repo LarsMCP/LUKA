@@ -9,11 +9,70 @@
 </div>
 
 {% if rescanned %}<p class="subject">Aufgabenverzeichnis wurde neu eingelesen.</p>{% endif %}
+{% if synced %}<p class="subject">Aufgaben-Repo wurde synchronisiert.</p>{% endif %}
 
 <p class="subject">
   Aufgaben werden als HTML unter <code>content/aufgaben/&lt;slug&gt;/index.html</code> abgelegt
   und hier automatisch erkannt.
 </p>
+
+{% if teacher.role == "admin" %}
+<div class="card">
+  <h2>Aufgaben-Repo</h2>
+  <p class="subject">
+    Optional: zusätzliche Aufgaben aus einem öffentlichen Git-Repo laden (gleiche
+    Struktur wie <code>content/aufgaben</code> – ein Ordner pro Aufgabe im Repo-Root).
+    Bei gleichem Aufgaben-Slug gewinnt die Version aus dem Repo. Wird automatisch
+    im konfigurierten Intervall synchronisiert.
+  </p>
+
+  {% if repo_config %}
+  <p class="subject">
+    Verbunden mit <code>{{ repo_config.repo_url }}</code> (Branch <code>{{ repo_config.branch }}</code>),
+    Sync alle {{ repo_config.sync_interval_minutes }} Min.
+    {% if repo_config.last_synced_at %}
+      &middot; letzter Sync: {{ repo_config.last_synced_at.strftime('%Y-%m-%d %H:%M') }}
+      {% if repo_config.last_sync_status == "ok" %}
+        <span class="badge badge-done">ok</span>
+      {% else %}
+        <span class="badge badge-open">Fehler</span>
+      {% endif %}
+    {% endif %}
+  </p>
+  {% if repo_config.last_sync_status == "error" and repo_config.last_sync_error %}
+  <p class="error">{{ repo_config.last_sync_error }}</p>
+  {% endif %}
+  <div class="cluster">
+    <form action="/admin/tasks/repo/sync" method="post">
+      <button type="submit" class="btn-tonal btn-sm"><span class="icon">sync</span> Jetzt synchronisieren</button>
+    </form>
+    <form action="/admin/tasks/repo/disconnect" method="post"
+          onsubmit="return confirm('Repo-Verbindung trennen? Bereits geklonte Aufgaben werden entfernt.');">
+      <button type="submit" class="btn-danger btn-sm"><span class="icon">link_off</span> Trennen</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <form action="/admin/tasks/repo" method="post" class="form-row" style="margin-top:1rem">
+    <div class="field">
+      <label for="repo_url" style="margin-top:0">Repo-URL</label>
+      <input type="text" id="repo_url" name="repo_url" placeholder="https://github.com/org/aufgaben.git"
+             value="{{ repo_config.repo_url if repo_config else '' }}" required>
+    </div>
+    <div class="field">
+      <label for="branch">Branch</label>
+      <input type="text" id="branch" name="branch" placeholder="main"
+             value="{{ repo_config.branch if repo_config else 'main' }}">
+    </div>
+    <div class="field">
+      <label for="sync_interval_minutes">Sync-Intervall (Min.)</label>
+      <input type="number" id="sync_interval_minutes" name="sync_interval_minutes" min="1"
+             value="{{ repo_config.sync_interval_minutes if repo_config else 15 }}">
+    </div>
+    <button type="submit"><span class="icon">link</span> {{ "Aktualisieren" if repo_config else "Verbinden" }}</button>
+  </form>
+</div>
+{% endif %}
 
 <ul class="tasks">
   {% for task in tasks %}

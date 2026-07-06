@@ -95,6 +95,26 @@ class AdminSession(SQLModel, table=True):
     expires_at: datetime
 
 
+class TaskRepoConfig(SQLModel, table=True):
+    """Konfiguration für ein optional verbundenes externes Aufgaben-Git-Repo.
+
+    Singleton-Tabelle: es existiert höchstens eine Zeile (id=1). Die Aufgaben
+    darin werden zusätzlich zu `content/aufgaben` gelesen (siehe discovery.py)
+    und per Hintergrund-Task periodisch synchronisiert (siehe task_repo.py).
+    """
+
+    __tablename__ = "task_repo_config"
+
+    id: int | None = Field(default=None, primary_key=True)
+    repo_url: str
+    branch: str = Field(default="main")
+    sync_interval_minutes: int = Field(default=15)
+    last_synced_at: datetime | None = Field(default=None)
+    last_sync_status: str | None = Field(default=None)  # "ok" | "error"
+    last_sync_error: str | None = Field(default=None)
+    updated_at: datetime = Field(default_factory=_now)
+
+
 class Task(SQLModel, table=True):
     """Aus dem Dateisystem gespiegelte Aufgabe (Auto-Discovery in M2)."""
 

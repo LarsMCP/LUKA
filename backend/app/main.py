@@ -4,6 +4,8 @@ App-Einstiegspunkt: Datenbank-Init + Aufgaben-Discovery beim Start, Health-Check
 Auslieferung der Aufgaben-HTML inkl. luka.js. Schüler- und Admin-Flows liegen in
 den jeweiligen Routern (student, admin).
 """
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -14,12 +16,38 @@ from sqlmodel import Session, select
 from .admin import router as admin_router
 from .auth import get_optional_student
 from .config import RUNTIME_DIR, STATIC_DIR
-from .database import get_session, init_db
+from .database import engine, get_session, init_db
 from .discovery import read_task_html, scan_tasks
 from .models import Assignment, Student, Task
 from .render import render_task_page
 from .student import router as student_router
+from . import task_repo
 from .templating import templates
+
+logger = logging.getLogger(__name__)
+
+_DEFAULT_SYNC_INTERVAL_MINUTES = 15
+
+
+async def _task_repo_sync_loop() -> None:
+    """Synchronisiert das verbundene Aufgaben-Repo periodisch im Hintergrund.
+
+    Läuft nur, solange ein Repo konfiguriert ist (siehe Admin > Aufgaben).
+    Fehler werden geloggt und im Sync-Status vermerkt, brechen die Schleife
+    aber nicht ab – der zuletzt funktionierende Stand bleibt erhalten.
+    """
+    while True:
+        interval_minutes = _DEFAULT_SYNC_INTERVAL_MINUTES
+        try:
+            with Session(engine) as db:
+                config = task_repo.get_config(db)
+                if config is not None and config.repo_url.strip():
+                    interval_minutes = config.sync_interval_minutes
+                    task_repo.sync(db)
+                    scan_tasks()
+        except Exception:  # noqa: BLE001 - Hintergrund-Loop darf nie abbrechen
+            logger.exception("Aufgaben-Repo-Sync fehlgeschlagen")
+        await asyncio.sleep(max(1, interval_minutes) * 60)
 
 
 @asynccontextmanager
@@ -27,8 +55,10 @@ async def lifespan(app: FastAPI):
     # Startup: Datenverzeichnis + Tabellen anlegen, dann Aufgaben einlesen.
     init_db()
     scan_tasks()
+    sync_task = asyncio.create_task(_task_repo_sync_loop())
     yield
-    # Shutdown: aktuell nichts aufzuräumen.
+    # Shutdown: Hintergrund-Sync stoppen.
+    sync_task.cancel()
 
 
 app = FastAPI(

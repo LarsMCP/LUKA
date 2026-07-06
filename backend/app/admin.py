@@ -39,6 +39,7 @@ from .models import (
     TeacherInvite,
 )
 from .security import hash_password
+from . import task_repo
 from .templating import templates
 
 INVITE_TTL = timedelta(days=7)
@@ -354,12 +355,22 @@ def tasks_page(
     teacher: Teacher | None = Depends(get_optional_teacher),
     db: Session = Depends(get_session),
     rescanned: int = 0,
+    synced: int = 0,
 ):
     if teacher is None:
         return _login_redirect()
     tasks = db.exec(select(Task)).all()
+    repo_config = task_repo.get_config(db)
     return templates.TemplateResponse(
-        request, "admin_tasks.html", {"teacher": teacher, "tasks": tasks, "rescanned": rescanned}
+        request,
+        "admin_tasks.html",
+        {
+            "teacher": teacher,
+            "tasks": tasks,
+            "rescanned": rescanned,
+            "synced": synced,
+            "repo_config": repo_config,
+        },
     )
 
 
@@ -369,6 +380,40 @@ def rescan(teacher: Teacher | None = Depends(get_optional_teacher)):
         return _login_redirect()
     scan_tasks()
     return RedirectResponse(url="/admin/tasks?rescanned=1", status_code=303)
+
+
+@router.post("/tasks/repo", include_in_schema=False)
+def save_task_repo(
+    teacher: Teacher = Depends(require_admin),
+    db: Session = Depends(get_session),
+    repo_url: str = Form(...),
+    branch: str = Form("main"),
+    sync_interval_minutes: int = Form(15),
+):
+    task_repo.save_config(db, repo_url.strip(), branch.strip(), sync_interval_minutes)
+    task_repo.sync(db)
+    scan_tasks()
+    return RedirectResponse(url="/admin/tasks?synced=1", status_code=303)
+
+
+@router.post("/tasks/repo/sync", include_in_schema=False)
+def sync_task_repo(
+    teacher: Teacher = Depends(require_admin),
+    db: Session = Depends(get_session),
+):
+    task_repo.sync(db)
+    scan_tasks()
+    return RedirectResponse(url="/admin/tasks?synced=1", status_code=303)
+
+
+@router.post("/tasks/repo/disconnect", include_in_schema=False)
+def disconnect_task_repo(
+    teacher: Teacher = Depends(require_admin),
+    db: Session = Depends(get_session),
+):
+    task_repo.disconnect(db)
+    scan_tasks()
+    return RedirectResponse(url="/admin/tasks", status_code=303)
 
 
 # ---------------------------------------------------------------------------

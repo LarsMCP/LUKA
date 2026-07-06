@@ -32,6 +32,9 @@ ENV/
 *.sqlite3
 data/*.db
 
+# Lokaler Klon eines verbundenen Aufgaben-Git-Repos (siehe task_repo.py)
+data/tasks-repo/
+
 # Environment variables
 .env
 .env.local

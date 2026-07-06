@@ -17,6 +17,10 @@ DATA_DIR = Path(os.getenv("LUKA_DATA_DIR", BASE_DIR / "data"))
 DATABASE_PATH = DATA_DIR / "luka.db"
 DATABASE_URL = os.getenv("LUKA_DATABASE_URL", f"sqlite:///{DATABASE_PATH}")
 
+# Lokaler Klon eines optional verbundenen Aufgaben-Git-Repos (siehe Admin >
+# Aufgaben). Liegt im persistenten Datenverzeichnis, nicht im Haupt-Repo.
+TASKS_REPO_DIR = Path(os.getenv("LUKA_TASKS_REPO_DIR", DATA_DIR / "tasks-repo"))
+
 # Templates
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
