@@ -13,6 +13,7 @@ from .config import DATA_DIR, DATABASE_URL
 # Format: {tabelle: [(spaltenname, spalten-DDL), ...]}
 _COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
     "students": [("password_hash", "VARCHAR")],
+    "tasks": [("solutions_json", "TEXT")],
 }
 
 # check_same_thread=False ist für SQLite mit FastAPI (mehrere Threads) notwendig.
