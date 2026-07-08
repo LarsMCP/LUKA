@@ -1,0 +1,88 @@
+{% extends "admin_base.html" %}
+{% block title %}Statistik – LUKA{% endblock %}
+{% block admin %}
+<h1>Statistik</h1>
+
+<form method="get" action="/admin/stats" class="card">
+  <label for="class_id" style="margin-top:0">Klasse</label>
+  <select id="class_id" name="class_id" onchange="this.form.submit()">
+    <option value="">– alle –</option>
+    {% for klass in classes %}
+    <option value="{{ klass.id }}" {{ 'selected' if sel_class == klass.id else '' }}>{{ klass.name }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if task_stats %}
+<div style="display:flex;flex-direction:column;gap:16px;margin-top:1rem">
+  {% for ts in task_stats %}
+  <div class="card" style="padding:16px 18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px">
+      <div>
+        <strong>{{ ts.title }}</strong>
+        <span class="subject" style="font-size:.8rem;margin-left:8px">{{ ts.class_name }}</span>
+      </div>
+      <a href="/admin/submissions?class_id={{ sel_class or '' }}&task_slug={{ ts.slug }}" class="btn btn-outlined btn-sm">
+        <span class="icon">list</span> Ergebnisse
+      </a>
+    </div>
+
+    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px">
+      <div>
+        <div class="subject" style="font-size:.75rem;margin-bottom:2px">Abgaben</div>
+        <div style="font-size:1.1rem;font-weight:600">{{ ts.submitted_count }}/{{ ts.student_count }}</div>
+        <div style="width:120px;height:6px;background:#e0e0e0;border-radius:3px;margin-top:4px">
+          <div style="width:{{ ts.submission_pct }}%;height:100%;background:#2563eb;border-radius:3px"></div>
+        </div>
+      </div>
+      {% if ts.has_solutions %}
+      <div>
+        <div class="subject" style="font-size:.75rem;margin-bottom:2px">Richtig</div>
+        <div style="font-size:1.1rem;font-weight:600;color:#16a34a">{{ ts.fill_pct }}%</div>
+        <div style="width:120px;height:6px;background:#e0e0e0;border-radius:3px;margin-top:4px">
+          <div style="width:{{ ts.fill_pct }}%;height:100%;background:#16a34a;border-radius:3px"></div>
+        </div>
+      </div>
+      <div>
+        <div class="subject" style="font-size:.75rem;margin-bottom:2px">Fehlerquote</div>
+        <div style="font-size:1.1rem;font-weight:600;color:{% if ts.error_pct > 50 %}#dc2626{% else %}#f59e0b{% endif %}">{{ ts.error_pct }}%</div>
+        <div style="width:120px;height:6px;background:#e0e0e0;border-radius:3px;margin-top:4px">
+          <div style="width:{{ ts.error_pct }}%;height:100%;background:{% if ts.error_pct > 50 %}#dc2626{% else %}#f59e0b{% endif %};border-radius:3px"></div>
+        </div>
+      </div>
+      {% else %}
+      <div>
+        <div class="subject" style="font-size:.75rem;margin-bottom:2px">Auswertung</div>
+        <div style="font-size:.9rem;color:var(--md-secondary,#666)">Keine Lösungen hinterlegt</div>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if ts.has_solutions and ts.hotspots %}
+    <details>
+      <summary style="cursor:pointer;font-size:.85rem;color:var(--md-secondary,#666);font-weight:600;padding:4px 0">Fehler-Hotspots (Top {{ ts.hotspots|length }})</summary>
+      <div style="margin-top:8px;font-size:.85rem">
+        {% for spot in ts.hotspots %}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--md-outline-variant,#e0e0e0)">
+          <span style="color:var(--md-secondary,#666);font-weight:600">{{ spot.pretty }}</span>
+          <span>
+            <span style="color:#16a34a">{{ spot.correct }} richtig</span>
+            ·
+            <span style="color:#dc2626">{{ spot.wrong }} falsch</span>
+            ·
+            <span style="color:#999">{{ spot.empty }} leer</span>
+            ·
+            <strong style="color:{% if spot.error_pct > 50 %}#dc2626{% else %}#f59e0b{% endif %}">{{ spot.error_pct }}%</strong>
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+    </details>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="subject" style="margin-top:1rem">Keine Aufgaben mit Abgaben in den ausgewählten Klassen.</p>
+{% endif %}
+{% endblock %}

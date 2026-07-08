@@ -124,6 +124,7 @@ class Task(SQLModel, table=True):
     title: str
     subject: str | None = Field(default=None)
     hash: str | None = Field(default=None)
+    solutions_json: str | None = Field(default=None)
     discovered_at: datetime = Field(default_factory=_now)
 
 

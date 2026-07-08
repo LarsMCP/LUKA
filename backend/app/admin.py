@@ -572,6 +572,7 @@ def _latest_submissions(db: Session, class_id: int, task_slug: str) -> list[dict
         rows.append(
             {
                 "student": student.display_name,
+                "student_id": student.id,
                 "submitted_at": sub.submitted_at if sub else None,
                 "answers": json.loads(sub.answers_json) if sub else None,
             }
@@ -579,12 +580,37 @@ def _latest_submissions(db: Session, class_id: int, task_slug: str) -> list[dict
     return rows
 
 
+def _sort_keys_natural(keys: list[str]) -> list[str]:
+    """Sortiert Feldnamen natürlich nach Schritt-Nummer: step1 vor step10."""
+    import re
+
+    def sort_key(k: str):
+        m = re.match(r"^step(\d+)_(.*)$", k)
+        if m:
+            return (int(m.group(1)), m.group(2))
+        m = re.match(r"^step(\d+)$", k)
+        if m:
+            return (int(m.group(1)), "")
+        return (999, k)
+
+    return sorted(keys, key=sort_key)
+
+
 def _answer_keys(rows: list[dict]) -> list[str]:
     keys: set[str] = set()
     for r in rows:
         if r["answers"]:
             keys.update(r["answers"].keys())
-    return sorted(keys)
+    return _sort_keys_natural(list(keys))
+
+
+def _pretty_key(key: str) -> str:
+    """Macht Feldnamen lesbar: step1_A -> Schritt 1: A, step3_plan -> Schritt 3: Plan."""
+    import re
+    m = re.match(r"^step(\d+)_(.+)$", key)
+    if m:
+        return f"Schritt {m.group(1)}: {m.group(2).replace('_', ' ').title()}"
+    return key
 
 
 def _format_answer(value) -> str:
@@ -623,6 +649,8 @@ def submissions_page(
         rows = _latest_submissions(db, class_id, task_slug)
         keys = _answer_keys(rows)
 
+    pretty_keys = [_pretty_key(k) for k in keys]
+
     return templates.TemplateResponse(
         request,
         "admin_submissions.html",
@@ -632,6 +660,7 @@ def submissions_page(
             "tasks": tasks,
             "rows": rows,
             "keys": keys,
+            "pretty_keys": pretty_keys,
             "sel_class": accessible_class.id if accessible_class else None,
             "sel_task": task_slug,
             "format_answer": _format_answer,
@@ -653,10 +682,11 @@ def submissions_csv(
 
     rows = _latest_submissions(db, class_id, task_slug)
     keys = _answer_keys(rows)
+    pretty_keys = [_pretty_key(k) for k in keys]
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["Anzeigename", "Abgabe (UTC)"] + keys)
+    writer.writerow(["Anzeigename", "Abgabe (UTC)"] + pretty_keys)
     for r in rows:
         answers = r["answers"] or {}
         writer.writerow(
@@ -673,6 +703,344 @@ def submissions_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ---------------------------------------------------------------------------
+# Statistik
+# ---------------------------------------------------------------------------
+
+def _evaluate_answers(solutions: dict, answers: dict) -> dict:
+    """Vergleicht Schüler-Antworten mit Lösungen.
+
+    Returns: {
+        "total": int,          # Anzahl auswertbarer Felder
+        "correct": int,        # davon richtig
+        "wrong": int,          # davon falsch
+        "empty": int,          # nicht ausgefüllt
+        "per_field": {feld: "correct"|"wrong"|"empty"}
+    }
+    """
+    per_field: dict[str, str] = {}
+    correct = wrong = empty = 0
+
+    for field, sol in solutions.items():
+        expected = sol.get("answer")
+        sol_type = sol.get("type")
+        student_val = answers.get(field)
+
+        # Leer?
+        if student_val is None or student_val == "" or student_val == []:
+            per_field[field] = "empty"
+            empty += 1
+            continue
+
+        # Numeric: Toleranz-Vergleich
+        if sol_type == "numeric":
+            try:
+                if abs(float(student_val) - float(expected)) < 0.01:
+                    per_field[field] = "correct"
+                    correct += 1
+                else:
+                    per_field[field] = "wrong"
+                    wrong += 1
+            except (ValueError, TypeError):
+                per_field[field] = "wrong"
+                wrong += 1
+            continue
+
+        # Checkbox: Liste vergleichen
+        if sol_type == "checkbox" or isinstance(expected, list):
+            expected_set = set(str(v) for v in expected)
+            if isinstance(student_val, list):
+                student_set = set(str(v) for v in student_val)
+            else:
+                student_set = {str(student_val)}
+            if student_set == expected_set:
+                per_field[field] = "correct"
+                correct += 1
+            else:
+                per_field[field] = "wrong"
+                wrong += 1
+            continue
+
+        # String: exakter Match (case-insensitive, trimmed)
+        if str(student_val).strip().lower() == str(expected).strip().lower():
+            per_field[field] = "correct"
+            correct += 1
+        else:
+            per_field[field] = "wrong"
+            wrong += 1
+
+    return {
+        "total": len(solutions),
+        "correct": correct,
+        "wrong": wrong,
+        "empty": empty,
+        "per_field": per_field,
+    }
+
+
+@router.get("/stats", response_class=HTMLResponse, include_in_schema=False)
+def stats_page(
+    request: Request,
+    teacher: Teacher | None = Depends(get_optional_teacher),
+    db: Session = Depends(get_session),
+    class_id: int | None = None,
+):
+    if teacher is None:
+        return _login_redirect()
+
+    classes = _visible_classes(db, teacher)
+    accessible_class = _get_accessible_class(db, teacher, class_id)
+
+    # Bestimme welche Klassen ausgewertet werden
+    if accessible_class is not None:
+        eval_classes = [accessible_class]
+    else:
+        eval_classes = classes
+
+    # Sammle Statistiken pro Aufgabe
+    task_stats: list[dict] = []
+    seen_slugs: set[str] = set()
+
+    for klass in eval_classes:
+        # Aufgaben der Klasse
+        assignments = db.exec(
+            select(Assignment).where(
+                Assignment.class_id == klass.id,
+                Assignment.active == True,  # noqa: E712
+            )
+        ).all()
+
+        students = db.exec(
+            select(Student).where(Student.class_id == klass.id)
+        ).all()
+        student_count = len(students)
+
+        for assignment in assignments:
+            slug = assignment.task_slug
+            task = db.get(Task, slug)
+            if task is None:
+                continue
+
+            # Lösungen aus DB
+            solutions = json.loads(task.solutions_json) if task.solutions_json else None
+
+            # Neueste Abgaben aller Schüler
+            submissions = []
+            for student in students:
+                sub = db.exec(
+                    select(Submission)
+                    .where(
+                        Submission.student_id == student.id,
+                        Submission.task_slug == slug,
+                    )
+                    .order_by(Submission.submitted_at.desc())
+                ).first()
+                if sub:
+                    submissions.append(json.loads(sub.answers_json))
+
+            submitted_count = len(submissions)
+
+            # Feld-Statistik
+            field_stats: dict[str, dict] = {}
+            if solutions:
+                for sol_field in solutions:
+                    field_stats[sol_field] = {"correct": 0, "wrong": 0, "empty": 0}
+
+                for answers in submissions:
+                    result = _evaluate_answers(solutions, answers)
+                    for field, status in result["per_field"].items():
+                        if field in field_stats:
+                            field_stats[field][status] += 1
+
+                # Fehlerquote pro Feld berechnen
+                hotspots = []
+                for field, counts in field_stats.items():
+                    total = counts["correct"] + counts["wrong"] + counts["empty"]
+                    if total == 0:
+                        continue
+                    wrong_pct = (counts["wrong"] + counts["empty"]) / total
+                    hotspots.append({
+                        "field": field,
+                        "pretty": _pretty_key(field),
+                        "correct": counts["correct"],
+                        "wrong": counts["wrong"],
+                        "empty": counts["empty"],
+                        "total": total,
+                        "error_pct": round(wrong_pct * 100),
+                    })
+                hotspots.sort(key=lambda h: h["error_pct"], reverse=True)
+
+                # Gesamt-Quote
+                total_fields = len(solutions) * max(submitted_count, 1)
+                total_correct = sum(c["correct"] for c in field_stats.values())
+                total_wrong = sum(c["wrong"] for c in field_stats.values())
+                total_empty = sum(c["empty"] for c in field_stats.values())
+            else:
+                hotspots = []
+                total_fields = 0
+                total_correct = total_wrong = total_empty = 0
+
+            task_key = f"{slug}:{klass.id}"
+            if task_key in seen_slugs:
+                # Merge into existing
+                for ts in task_stats:
+                    if ts["slug"] == slug and ts["class_name"] == klass.name:
+                        ts["submitted_count"] += submitted_count
+                        ts["student_count"] += student_count
+                        break
+                continue
+            seen_slugs.add(task_key)
+
+            task_stats.append({
+                "slug": slug,
+                "title": task.title,
+                "class_name": klass.name,
+                "student_count": student_count,
+                "submitted_count": submitted_count,
+                "has_solutions": solutions is not None,
+                "submission_pct": round(submitted_count / student_count * 100) if student_count else 0,
+                "fill_pct": round(total_correct / total_fields * 100) if total_fields else 0,
+                "error_pct": round((total_wrong + total_empty) / total_fields * 100) if total_fields else 0,
+                "hotspots": hotspots[:5],
+            })
+
+    # Sortiere nach Fehlerquote absteigend
+    task_stats.sort(key=lambda t: t["error_pct"], reverse=True)
+
+    return templates.TemplateResponse(
+        request,
+        "admin_stats.html",
+        {
+            "teacher": teacher,
+            "classes": classes,
+            "sel_class": accessible_class.id if accessible_class else None,
+            "task_stats": task_stats,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Schüler-Ansicht für Lehrer: Lernpfad mit Schüler-Antworten
+# ---------------------------------------------------------------------------
+
+@router.get("/submissions/view", include_in_schema=False)
+def submission_view(
+    request: Request,
+    teacher: Teacher | None = Depends(get_optional_teacher),
+    db: Session = Depends(get_session),
+    class_id: int | None = None,
+    task_slug: str | None = None,
+    student_id: int | None = None,
+):
+    if teacher is None:
+        return _login_redirect()
+    if _get_accessible_class(db, teacher, class_id) is None or not task_slug or not student_id:
+        return RedirectResponse(url="/admin/submissions", status_code=303)
+
+    student = db.get(Student, student_id)
+    if student is None or student.class_id != class_id:
+        return RedirectResponse(url="/admin/submissions", status_code=303)
+
+    task = db.get(Task, task_slug)
+    if task is None:
+        return RedirectResponse(url="/admin/submissions", status_code=303)
+
+    # Neueste Abgabe des Schülers holen
+    sub = db.exec(
+        select(Submission)
+        .where(
+            Submission.student_id == student_id,
+            Submission.task_slug == task_slug,
+        )
+        .order_by(Submission.submitted_at.desc())
+    ).first()
+
+    answers = json.loads(sub.answers_json) if sub else {}
+
+    # Rohe Task-HTML lesen
+    from .discovery import read_task_html
+    raw_html = read_task_html(task_slug)
+    if raw_html is None:
+        return RedirectResponse(url="/admin/submissions", status_code=303)
+
+    # Teacher-View Injektion: Schüler-Antworten einfüllen, alle Schritte
+    # sichtbar machen, Feedback + Musterlösungen anzeigen, read-only.
+    answers_json = json.dumps(answers)
+    extra_inject = """  <!-- Teacher-View -->
+  <script>window.LUKA_STUDENT_ANSWERS = {answers_json};</script>
+  <script>window.LUKA_TEACHER_VIEW = true;</script>
+  <script>
+  (function() {{
+    // 1. Antworten einfüllen (nach luka.js load)
+    var answers = window.LUKA_STUDENT_ANSWERS || {{}};
+    
+    // 2. autoSave deaktivieren, unlock überschreiben
+    window.LUKA = window.LUKA || {{}};
+    window.LUKA.autoSave = function() {{}};
+    window.unlock = function(n) {{ return; }};
+
+    // 3. Nach DOM-Ready: Antworten einfüllen, Schritte sichtbar, Feedback
+    document.addEventListener('DOMContentLoaded', function() {{
+      // Antworten einfüllen (luka.js applyAnswers nutzt name oder id)
+      if (window.LUKA && window.LUKA.applyAnswers) {{
+        window.LUKA.applyAnswers(answers);
+      }}
+
+      // Alle Schritte sichtbar machen
+      document.querySelectorAll('.step').forEach(function(s) {{
+        s.style.display = 'block';
+        s.classList.add('active');
+      }});
+
+      // Progress Bar auf 100%
+      var pf = document.getElementById('progressFill');
+      if (pf) pf.style.width = '100%';
+      var pt = document.getElementById('progressText');
+      if (pt) pt.textContent = 'Lehrer-Ansicht';
+
+      // Alle Check-Buttons ausführen für Feedback
+      var checkFns = ['checkStep1','checkStep2','checkStep4','checkStep5',
+                      'checkStep6','checkStep7','checkStep8','checkStep9',
+                      'checkStep10','checkStep11','checkStep12'];
+      checkFns.forEach(function(fn) {{
+        try {{ if (typeof window[fn] === 'function') window[fn](); }} catch(e) {{}}
+      }});
+      // checkTextStep für Step 3
+      try {{ if (typeof checkTextStep === 'function') checkTextStep(3,'planText','fb3'); }} catch(e) {{}}
+
+      // Musterlösungen einblenden
+      document.querySelectorAll('.solution, .hidden-solution').forEach(function(s) {{
+        s.classList.add('show');
+      }});
+
+      // Read-only: alle Felder deaktivieren
+      document.querySelectorAll('input, select, textarea').forEach(function(el) {{
+        el.disabled = true;
+      }});
+
+      // Buttons deaktivieren (kein Klicken mehr nötig)
+      document.querySelectorAll('.btn').forEach(function(b) {{
+        b.disabled = true;
+        b.style.opacity = '0.5';
+        b.style.cursor = 'default';
+      }});
+    }});
+  }})();
+  </script>
+""".format(answers_json=answers_json)
+
+    from .render import render_task_page
+    html = render_task_page(task_slug, task.title, raw_html, extra_inject=extra_inject)
+
+    # Back-Link im Header-Bereich anpassen (zurück zu Ergebnisse)
+    html = html.replace(
+        'href="/aufgaben"',
+        'href="/admin/submissions?class_id={}&amp;task_slug={}"'.format(class_id, task_slug),
+    )
+
+    return HTMLResponse(content=html)
 
 
 # ---------------------------------------------------------------------------

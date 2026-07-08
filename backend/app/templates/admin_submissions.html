@@ -27,36 +27,44 @@
 
 {% if sel_class and sel_task %}
   <div class="topbar">
-    <p class="subject">Jeweils neueste Abgabe pro Schüler.</p>
+    <p class="subject">Jeweils neueste Abgabe pro Schüler. Zwischenergebnisse werden automatisch gespeichert.</p>
     <a href="/admin/submissions.csv?class_id={{ sel_class }}&task_slug={{ sel_task }}" class="btn btn-outlined btn-sm">
       <span class="icon">download</span> CSV-Export
     </a>
   </div>
-  <div class="table-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th>Schüler</th>
-        <th>Abgabe (UTC)</th>
-        {% for key in keys %}<th>{{ key }}</th>{% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in rows %}
-      <tr>
-        <td>{{ row.student }}</td>
-        <td class="subject">
-          {{ row.submitted_at.strftime('%Y-%m-%d %H:%M') if row.submitted_at else '–' }}
-        </td>
-        {% for key in keys %}
-        <td>{{ format_answer(row.answers.get(key)) if row.answers else '' }}</td>
-        {% endfor %}
-      </tr>
-      {% else %}
-      <tr><td colspan="{{ keys|length + 2 }}" class="subject">Keine Schüler in dieser Klasse.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:1rem">
+    {% for row in rows %}
+    <div class="submission-card card" style="padding:14px 18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <strong>{{ row.student }}</strong>
+          <span class="subject" style="font-size:.8rem">
+            {{ row.submitted_at.strftime('%Y-%m-%d %H:%M') if row.submitted_at else '– keine Abgabe –' }}
+          </span>
+        </div>
+        <a href="/admin/submissions/view?class_id={{ sel_class }}&task_slug={{ sel_task }}&student_id={{ row.student_id }}"
+           target="_blank" class="btn btn-outlined btn-sm" style="white-space:nowrap">
+          <span class="icon">visibility</span> Kontrollieren
+        </a>
+      </div>
+      {% if row.answers %}
+      <details style="margin-top:8px">
+        <summary style="cursor:pointer;font-size:.85rem;color:var(--md-secondary,#666);font-weight:600;padding:4px 0">Antworten anzeigen ({{ keys|length }} Felder)</summary>
+        <dl style="margin:8px 0 0;font-size:.85rem;line-height:1.6">
+          {% for key in keys %}
+          {% set val = format_answer(row.answers.get(key)) %}
+          <div style="display:flex;gap:6px;padding:2px 0;border-bottom:1px solid var(--md-outline-variant,#e0e0e0)">
+            <dt style="flex:0 0 auto;color:var(--md-secondary,#666);font-weight:600">{{ pretty_keys[loop.index0] }}:</dt>
+            <dd style="margin:0;flex:1;{% if not val %}color:var(--md-outline,#999){% endif %}">{{ val or '–' }}</dd>
+          </div>
+          {% endfor %}
+        </dl>
+      </details>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="subject">Keine Schüler in dieser Klasse.</p>
+    {% endfor %}
   </div>
 {% endif %}
 {% endblock %}

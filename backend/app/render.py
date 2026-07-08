@@ -1,9 +1,16 @@
 """Aufbereitung der Aufgaben-HTML für die Auslieferung an Schüler.
 
-Aufgaben-Dateien sind HTML-Fragmente. Vor der Auslieferung wird:
+Es werden zwei Formate unterstützt:
+1. **Fragmente** (klassisch): HTML-Schnipsel ohne <html>/<head>/<body>.
+   Werden in das LUKA-Seitentemplate gewrappt.
+2. **Vollformat-Dokumente** (Lernpfade): Komplette HTML-Seite mit eigenem
+   <style>, <script>, Step-Navigation etc. Werden nicht gewrappt, sondern
+   LUKA-Scripts werden vor </body> injiziert.
+
+In beiden Fällen wird vor der Auslieferung:
 - der Meta-Block entfernt,
-- `data-solution`/`data-type` entfernt (Vorbereitung Auto-Korrektur; kein Spicken),
-- das Fragment in eine vollständige HTML-Seite mit der `luka.js`-Runtime gewrappt.
+- `data-solution`/`data-type`/`data-answer`/`data-correct` entfernt
+  (kein Spicken im Schüler-View).
 """
 from __future__ import annotations
 
@@ -17,9 +24,10 @@ _META_BLOCK_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
-# Entfernt data-solution / data-type Attribute (mit und ohne Wert).
+# Entfernt data-solution / data-type / data-answer / data-correct Attribute
+# (mit und ohne Wert) – verhindert Spicken im Schüler-View.
 _SOLUTION_ATTR_RE = re.compile(
-    r'\s+data-(?:solution|type|tolerance)\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)',
+    r'\s+data-(?:solution|type|tolerance|answer|correct)\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)',
     re.IGNORECASE,
 )
 
@@ -97,13 +105,38 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
 """
 
 
-def render_task_page(slug: str, title: str, raw_html: str) -> str:
-    """Baut die auslieferbare HTML-Seite für eine Aufgabe."""
-    body = _META_BLOCK_RE.sub("", raw_html)
-    body = _SOLUTION_ATTR_RE.sub("", body)
+# Erkennt vollständige HTML-Dokumente (<!DOCTYPE ...> oder <html ...>).
+_FULL_DOC_RE = re.compile(r'^\s*(?:<!DOCTYPE\s+html|<html)', re.IGNORECASE)
+
+# Injektions-Scripts für Vollformat-Dokumente (vor </body> eingefügt).
+_LUKA_INJECT = """  <!-- LUKA-Integration -->
+  <a href="/aufgaben" style="position:fixed;top:12px;left:12px;z-index:9999;background:rgba(255,255,255,.9);border:1px solid #dbe3ef;border-radius:999px;padding:6px 14px;font-family:system-ui,sans-serif;font-size:.85rem;font-weight:700;color:#2563eb;text-decoration:none;box-shadow:0 2px 8px rgba(0,0,0,.12)">&larr; Aufgaben</a>
+  <script>window.LUKA_TASK = {task_json};</script>
+  <script src="/static/luka.js"></script>
+{extra_inject}</body>"""
+
+
+def render_task_page(slug: str, title: str, raw_html: str, extra_inject: str = "") -> str:
+    """Baut die auslieferbare HTML-Seite für eine Aufgabe.
+
+    Erkennt automatisch, ob es sich um ein Fragment oder ein vollständiges
+    HTML-Dokument handelt und wendet die entsprechende Rendering-Strategie an.
+
+    extra_inject: Zusätzlicher HTML/JS-Code, der vor </body> eingefügt wird
+                  (z.B. für die Lehrer-Ansicht mit Schüler-Antworten).
+    """
+    html = _META_BLOCK_RE.sub("", raw_html)
+    html = _SOLUTION_ATTR_RE.sub("", html)
     task_json = json.dumps({"slug": slug, "title": title})
+
+    if _FULL_DOC_RE.match(html):
+        # Vollformat: nicht wrappen, LUKA-Scripts vor </body> injizieren.
+        inject = _LUKA_INJECT.format(task_json=task_json, extra_inject=extra_inject)
+        return html.replace("</body>", inject, 1)
+
+    # Fragment: in LUKA-Seitentemplate wrappen (wie bisher).
     return _PAGE_TEMPLATE.format(
         title=html_lib.escape(title),
-        body=body,
+        body=html,
         task_json=task_json,
     )

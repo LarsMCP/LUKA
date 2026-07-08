@@ -27,6 +27,25 @@ _META_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+# Sucht data-solution Attribute auf Input/Select/Textarea-Elementen.
+_DATA_SOLUTION_RE = re.compile(
+    r'<(?:input|select|textarea)\b[^>]*\bname=["\']([^"\']+)["\'][^>]*>',
+    re.IGNORECASE,
+)
+_DATA_SOL_ATTR_RE = re.compile(
+    r'\bdata-solution\s*=\s*["\']([^"\']*)["\']',
+    re.IGNORECASE,
+)
+_DATA_TYPE_ATTR_RE = re.compile(
+    r'\bdata-type\s*=\s*["\']([^"\']*)["\']',
+    re.IGNORECASE,
+)
+# Sucht den SOLUTIONS-Block im <script> (Lernpfad-Format).
+_SOLUTIONS_BLOCK_RE = re.compile(
+    r'const\s+SOLUTIONS\s*=\s*(\{.*?\})\s*;',
+    re.DOTALL,
+)
+
 
 def parse_meta(html: str) -> dict:
     """Liest den JSON-Meta-Block aus dem Aufgaben-HTML. Fehlt/ungültig -> {}."""
@@ -42,6 +61,72 @@ def parse_meta(html: str) -> dict:
 
 def _slug_from_meta_or_folder(meta: dict, folder: str) -> str:
     return str(meta.get("slug") or folder)
+
+
+def extract_solutions(html: str) -> dict | None:
+    """Extrahiert Lösungen aus dem Aufgaben-HTML.
+
+    Zwei Formate:
+    1. data-solution Attribute (Fragment-Format)
+    2. const SOLUTIONS = {...} im <script> (Lernpfad-Format)
+
+    Returns einheitliches Dict: {feldname: {"answer": wert, "type": typ?}}
+    oder None wenn keine Lösungen gefunden wurden.
+    """
+    solutions: dict = {}
+
+    # 1. data-solution Attribute (Fragment-Format)
+    for m in _DATA_SOLUTION_RE.finditer(html):
+        tag = m.group(0)
+        name = m.group(1)
+        sol_match = _DATA_SOL_ATTR_RE.search(tag)
+        if not sol_match:
+            continue
+        answer = sol_match.group(1)
+        type_match = _DATA_TYPE_ATTR_RE.search(tag)
+        entry = {"answer": answer}
+        if type_match:
+            entry["type"] = type_match.group(1)
+        solutions[name] = entry
+
+    # 2. const SOLUTIONS = {...} (Lernpfad-Format)
+    sol_block = _SOLUTIONS_BLOCK_RE.search(html)
+    if sol_block:
+        try:
+            raw = _parse_js_object(sol_block.group(1))
+            _flatten_solutions(raw, solutions)
+        except Exception:
+            pass
+
+    return solutions if solutions else None
+
+
+def _parse_js_object(text: str) -> dict:
+    """Parst ein vereinfachtes JS-Object-Literal zu einem Python dict.
+
+    Behandelt Single-Quotes als String-Begrenzer und unquoted Keys.
+    """
+    # JS-Object zu JSON konvertieren: Single-Quotes -> Double-Quotes
+    text = text.replace("'", '"')
+    # Unquoted Keys quoten: {step1_A: -> {"step1_A":
+    text = re.sub(r'(\w+):', r'"\1":', text)
+    return json.loads(text)
+
+
+def _flatten_solutions(raw: dict, solutions: dict) -> None:
+    """Flacht das SOLUTIONS-Objekt zu {feld: {answer}} auf.
+
+    step1: {step1_A: 'Würfel'} -> step1_A: {answer: 'Würfel'}
+    step2: ['a', 'b'] -> step2: {answer: ['a', 'b'], type: 'checkbox'}
+    """
+    for key, val in raw.items():
+        if isinstance(val, dict):
+            for sub_key, sub_val in val.items():
+                solutions[sub_key] = {"answer": sub_val}
+        elif isinstance(val, list):
+            solutions[key] = {"answer": val, "type": "checkbox"}
+        else:
+            solutions[key] = {"answer": val}
 
 
 def _scan_dir(base: Path, session: Session, found_slugs: set[str], discovered: list[str]) -> None:
@@ -63,16 +148,23 @@ def _scan_dir(base: Path, session: Session, found_slugs: set[str], discovered: l
         subject = meta.get("subject")
 
         task = session.get(Task, slug)
+        solutions = extract_solutions(html)
+        solutions_str = json.dumps(solutions, ensure_ascii=False) if solutions else None
         if task is None:
-            task = Task(slug=slug, title=title, subject=subject, hash=file_hash)
+            task = Task(slug=slug, title=title, subject=subject, hash=file_hash,
+                        solutions_json=solutions_str)
             session.add(task)
             discovered.append(slug)
         elif task.hash != file_hash:
             task.title = title
             task.subject = subject
             task.hash = file_hash
+            task.solutions_json = solutions_str
             session.add(task)
             discovered.append(slug)
+        elif task.solutions_json != solutions_str:
+            task.solutions_json = solutions_str
+            session.add(task)
 
 
 def scan_tasks(content_dir: Path | None = None) -> dict:
