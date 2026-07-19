@@ -14,8 +14,9 @@ from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
 from .admin import router as admin_router
+from .api_admin import router as api_admin_router
 from .auth import get_optional_student
-from .config import RUNTIME_DIR, STATIC_DIR
+from .config import BASE_DIR, RUNTIME_DIR, STATIC_DIR
 from .database import engine, get_session, init_db
 from .discovery import read_task_html, scan_tasks
 from .models import Assignment, Student, Task
@@ -70,6 +71,7 @@ app = FastAPI(
 
 app.include_router(student_router)
 app.include_router(admin_router)
+app.include_router(api_admin_router)
 
 # Selbst gehostetes CSS + Schriften (Roboto, Material Symbols) – bewusst kein
 # Google-CDN, um DSGVO-Probleme durch IP-Übertragung an Google zu vermeiden.
@@ -127,3 +129,29 @@ def get_task(
         raise HTTPException(status_code=403, detail="Aufgabe nicht freigeschaltet")
 
     return HTMLResponse(render_task_page(slug, task.title, raw_html))
+
+
+# ---------------------------------------------------------------------------
+# SPA-Fallback: liefert die React-Build-Dateien für alle nicht-API-Routen.
+# ---------------------------------------------------------------------------
+
+_FRONTEND_DIR = BASE_DIR / "frontend" / "dist"
+_INDEX_HTML = _FRONTEND_DIR / "index.html"
+
+if _FRONTEND_DIR.is_dir():
+    # Statische Assets (JS, CSS, favicon) unter /app/assets/ etc.
+    _ASSETS_DIR = _FRONTEND_DIR / "assets"
+    if _ASSETS_DIR.is_dir():
+        app.mount("/app/assets", StaticFiles(directory=_ASSETS_DIR), name="frontend-assets")
+
+    @app.get("/app/{path:path}", response_class=HTMLResponse, include_in_schema=False)
+    def spa_fallback(path: str):
+        """Liefert index.html für alle /app/* Routen (SPA-Modus)."""
+        # Versuche zuerst, eine statische Datei aus dem Frontend-Verzeichnis zu finden.
+        file_path = _FRONTEND_DIR / path
+        if path and file_path.is_file():
+            return FileResponse(file_path)
+        # Sonst index.html (React Router übernimmt das Client-Side Routing).
+        if _INDEX_HTML.is_file():
+            return FileResponse(_INDEX_HTML)
+        raise HTTPException(status_code=404)

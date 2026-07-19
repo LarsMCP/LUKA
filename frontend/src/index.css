@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-luka-primary: #2563eb;
+  --color-luka-primary-dark: #1d4ed8;
+  --color-luka-success: #16a34a;
+  --color-luka-warning: #f59e0b;
+  --color-luka-danger: #dc2626;
+  --color-luka-surface: #ffffff;
+  --color-luka-surface-dark: #16171d;
+  --color-luka-border: #e5e4e7;
+  --color-luka-border-dark: #2e303a;
+  --color-luka-text: #1f2937;
+  --color-luka-text-secondary: #6b7280;
+}
+
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}

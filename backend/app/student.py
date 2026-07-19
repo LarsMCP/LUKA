@@ -23,6 +23,8 @@ from .auth import (
 from .database import get_session
 from .models import Assignment, Class, Student, Submission, Task
 from .security import MIN_PASSWORD_LENGTH, hash_password, verify_password
+from .discovery import read_task_html
+from .render import render_task_page
 from .templating import templates
 
 router = APIRouter()
@@ -188,7 +190,7 @@ def logout(
 
 @router.get("/api/me", tags=["student"])
 def me(student: Student = Depends(get_current_student)) -> dict:
-    return {"student_id": student.id, "display_name": student.display_name}
+    return {"id": student.id, "display_name": student.display_name, "class_id": student.class_id}
 
 
 @router.get("/api/tasks", tags=["student"])
@@ -198,7 +200,17 @@ def list_tasks(
 ) -> list[dict]:
     """Für die Klasse des Schülers freigeschaltete Aufgaben."""
     tasks = _assigned_tasks(db, student.class_id)
-    return [{"slug": t.slug, "title": t.title, "subject": t.subject} for t in tasks]
+    submitted = {
+        row for row in db.exec(
+            select(Submission.task_slug)
+            .where(Submission.student_id == student.id)
+            .distinct()
+        ).all()
+    }
+    return [
+        {"slug": t.slug, "title": t.title, "subject": t.subject, "submitted": t.slug in submitted}
+        for t in tasks
+    ]
 
 
 class SubmissionRequest(BaseModel):
@@ -253,6 +265,22 @@ def latest_submission(
 # ---------------------------------------------------------------------------
 # Server-gerenderte Seiten
 # ---------------------------------------------------------------------------
+
+@router.get("/api/tasks/{slug}/html", tags=["student"], response_class=HTMLResponse)
+def get_task_html(
+    slug: str,
+    student: Student = Depends(get_current_student),
+    db: Session = Depends(get_session),
+):
+    """Liefert die Aufgaben-HTML (ohne Lösungen) für das React-Frontend."""
+    task = db.get(Task, slug)
+    raw_html = read_task_html(slug)
+    if task is None or raw_html is None:
+        raise HTTPException(status_code=404, detail="Aufgabe nicht gefunden")
+    if not _is_assigned(db, student.class_id, slug):
+        raise HTTPException(status_code=403, detail="Aufgabe nicht freigeschaltet")
+    return HTMLResponse(render_task_page(slug, task.title, raw_html))
+
 
 @router.get("/", response_class=HTMLResponse, include_in_schema=False)
 def index(
